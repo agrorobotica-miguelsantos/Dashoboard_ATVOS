@@ -1,5 +1,3 @@
-re
-pathlib
+streamlit
 pandas
 plotly
-streamlit
