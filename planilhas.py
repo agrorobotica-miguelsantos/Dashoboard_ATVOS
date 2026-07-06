@@ -26,7 +26,7 @@ st.markdown(
 @st.cache_data(ttl=3600)
 def carregar_dados_locais():
     """Busca as planilhas na pasta padrão do OneDrive"""
-    entrada = Path("pedidos")
+    entrada = Path("\pedidos")
     if not entrada.exists():
         return None
 
