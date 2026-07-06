@@ -344,7 +344,7 @@ with col_graf1:
         x="Remessa",
         y="Quantidade",
         color="Status",
-        facet_col="Tipo",
+        facet_row="Tipo",
         color_discrete_map={"Concluído": CORES["verde"], "Pendente": CORES["vermelho"]},
         barmode="stack",
         text_auto=True,
