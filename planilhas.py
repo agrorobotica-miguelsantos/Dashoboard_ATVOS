@@ -524,7 +524,12 @@ else:
 # RODAPÉ
 # ============================================================
 st.divider()
-st.caption(
-    "Dashboard desenvolvido para acompanhamento do quantitativo de amostras e status de conclusão das ordens de serviço ATVOS"
+
+st.markdown(
+    """
+    <div style="text-align: center; color: #6B7280; font-size: 14px;">
+        Dashboard desenvolvido para acompanhamento do quantitativo de amostras e status de conclusão das ordens de serviço ATVOS.
+    </div>
+    """,
+    unsafe_allow_html=  True
 )
-st.caption("© 2026 Agrorobótica")
