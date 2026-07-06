@@ -334,6 +334,26 @@ st.progress(pct_progresso)
 
 st.markdown("### Volumetria por Unidade")
 
+df_graf_remessa = df_filtrado.groupby(["Remessa", "Status"]).size().reset_index(name="Quantidade")
+
+fig_remessa = px.bar(
+    df_graf_remessa,
+    x="Remessa",
+    y="Quantidade",
+    color="Status",
+    color_discrete_map={"Concluído": CORES["verde"], "Pendente": CORES["vermelho"]},
+    barmode="stack",
+    text_auto=True
+)
+
+fig_remessa.update_layout(
+    xaxis_title="Remessa",
+    yaxis_title="Nº Amostras",
+    legend_title_text="Status",
+    separators=",.",
+    yaxis_tickformat=",d"
+)
+
 df_graf_unidade = df_filtrado.groupby(["Unidade", "Status"]).size().reset_index(name="Quantidade")
 
 fig_unidade = px.bar(
