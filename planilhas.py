@@ -76,7 +76,7 @@ st.sidebar.image(
     width=300,
 )
 
-if st.sidebar_button("🔄 Atualizar Dados", use_container_width = True):
+if st.sidebar.button("🔄 Atualizar Dados", use_container_width = True):
     st.cache_data.clear()
     st.rerun()
 
