@@ -363,10 +363,23 @@ with col_graf1:
         type="category",
         categoryorder="array",
         categoryarray=ordem_remessas,
-        title_text="Remessa",
-        matches="x")
+        title_text=""
+    )
+    fig_remessa.update_xaxes(showticklabels=True, row=1, col=1, title_text = "Remessa")
+    fig_remessa.update_xaxes(showticklabels=False, row=2, col=1)
 
-    fig_remessa.for_each_annotation(lambda a: a.update(text=f"<b>{a.text.split('=')[-1]}</b>"))
+    for idx, anno in enumerate(fig_remessa["layout"]["annotations"]):
+        texto_limpo = anno["text"].split('=')[-1]
+        posicao_y = 1.02 if idx == 1 else 0.44
+        anno.update(
+            text=f"<b>{texto_limpo}</b>",
+            x=0.5,
+            yref='paper',
+            y=posicao_y,
+            textangle=0,
+            xanchor='center',
+            yanchor='bottom'
+        )
 
     st.plotly_chart(aplicar_layout_grafico(fig_remessa, 400), use_container_width=True)
 
