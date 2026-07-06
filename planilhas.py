@@ -76,6 +76,10 @@ st.sidebar.image(
     width=300,
 )
 
+if st.sidebar_button("🔄 Atualizar Dados", use_container_width = True):
+    st.cache_data.clear()
+    st.rerun()
+
 df_bruto = carregar_dados_locais()
 df_fazendas = pd.read_excel("fazendas.xlsx")
 
