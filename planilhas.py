@@ -383,8 +383,8 @@ with col_graf1:
         
         # Define o eixo Y correto de forma fixa com base no texto para evitar sobreposição
         if len(tipos_ativos) == 2:
-            # Se os dois estão na tela, PAV fica em cima (y2) e Fertilidade embaixo (y)
-            eixo_y_correto = 'y2 domain' if texto_limpo == 'PAV' else 'y domain'
+            # Se os dois estão na tela, Fertilidade fica em cima (y2) e PAV embaixo (y)
+            eixo_y_correto = 'y2 domain' if texto_limpo == 'Fertilidade' else 'y domain'
         else:
             # Se apenas um está na tela, ele sempre usará o primeiro eixo disponível (y)
             eixo_y_correto = 'y domain'
