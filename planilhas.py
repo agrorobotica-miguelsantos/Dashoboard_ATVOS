@@ -338,6 +338,7 @@ col_graf1, col_graf2 = st.columns(2)
 
 with col_graf1:
     df_graf_remessa = df_filtrado.groupby(["Remessa", "Status", "Tipo"]).size().reset_index(name="Quantidade")
+    ordem_remessas = sorted(df_graf_remessa["Remessa"].unique())
 
     fig_remessa = px.bar(
         df_graf_remessa,
@@ -361,7 +362,12 @@ with col_graf1:
     )
 
     fig_remessa.update_yaxes(title_text="Nº Amostras")
-    fig_remessa.update_xaxes(type="category", title_text="Remessa", matches="x")
+    fig_remessa.update_xaxes(
+        type="category",
+        categoryorder="array",
+        categoryarray=ordem_remessas,
+        title_text="Remessa",
+        matches="x")
 
     fig_remessa.for_each_annotation(lambda a: a.update(text=f"<b>{a.text.split('=')[-1]}</b>"))
 
