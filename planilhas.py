@@ -310,7 +310,7 @@ concluidas = (df_filtrado["Status"] == "Concluído").sum()
 pendentes = (df_filtrado["Status"] == "Pendente").sum()
 pct_progresso = concluidas / total_amostras if total_amostras > 0 else 0
 
-c1, c2, c3, c4 = st.columns(4)
+c1, c2, c3 = st.columns(3)
 
 with c1:
     card_kpi("Total de Amostras", f"{format_num(total_amostras)} un", "Amostras recebidas")
@@ -320,9 +320,6 @@ with c2:
 
 with c3:
     card_kpi("Pendentes", f"{format_num(pendentes)} un", f"{(1 - pct_progresso):.1%} em andamento")
-
-with c4:
-    card_kpi("Taxa de Conclusão", f"{pct_progresso:.1%}", "   ")
 
 st.markdown("<br>", unsafe_allow_html=True)
 st.progress(pct_progresso)
