@@ -337,17 +337,18 @@ st.markdown("### Volumetria por Unidade")
 col_graf1, col_graf2 = st.columns(2)
 
 with col_graf1:
-    df_graf_remessa = df_filtrado.groupby(["Remessa", "Status"]).size().reset_index(name="Quantidade")
+    df_graf_remessa = df_filtrado.groupby(["Remessa", "Status", "Tipo"]).size().reset_index(name="Quantidade")
 
     fig_remessa = px.bar(
         df_graf_remessa,
         x="Remessa",
         y="Quantidade",
         color="Status",
+        facet_col="Tipo",
         color_discrete_map={"Concluído": CORES["verde"], "Pendente": CORES["vermelho"]},
         barmode="stack",
         text_auto=True,
-        title="<b>Amostras por Remessa</b>"
+        title="<b>Amostras por Remessa e Tipo</b>"
     )
 
     fig_remessa.update_layout(
@@ -357,6 +358,8 @@ with col_graf1:
         separators=",.",
         yaxis_tickformat=",d"
     )
+
+    fig_remessa.for_each_annotation(lambda a: a.update(text="<b>{a.text.split('=')[-1]}</b>"))
 
     st.plotly_chart(aplicar_layout_grafico(fig_remessa, 400), use_container_width=True)
 
