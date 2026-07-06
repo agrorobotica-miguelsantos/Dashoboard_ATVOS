@@ -528,7 +528,7 @@ st.divider()
 st.markdown(
     """
     <div style="text-align: center; color: #6B7280; font-size: 14px;">
-        Dashboard desenvolvido para acompanhamento do quantitativo de amostras e status de conclusão das ordens de serviço ATVOS.
+        Dashboard desenvolvido para acompanhamento do quantitativo de amostras e status de conclusão das ordens de serviço ATVOS.<br>
         © 2026 Agrorobótica
     </div>
     """,
