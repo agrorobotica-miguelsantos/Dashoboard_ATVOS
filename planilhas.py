@@ -288,7 +288,7 @@ st.markdown(
     <div class="hero">
         <div class="hero-title">Acompanhamento de Amostragens — ATVOS</div>
         <div class="hero-subtitle">
-            Monitoramento de volumetria e status de conclusão por unidades | 
+            Monitoramento do quantitativo de amostras e status de conclusão por remesa, tipo e unidade | 
             Atualizado em {hora_brasilia.strftime("%d/%m/%Y %H:%M")}
         </div>
     </div>
