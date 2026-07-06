@@ -322,7 +322,7 @@ with c3:
     card_kpi("Pendentes", f"{format_num(pendentes)} un", f"{(1 - pct_progresso):.1%} em andamento")
 
 with c4:
-    card_kpi("Taxa de Conclusão", f"{pct_progresso:.1%}", "")
+    card_kpi("Taxa de Conclusão", f"{pct_progresso:.1%}", "   ")
 
 st.markdown("<br>", unsafe_allow_html=True)
 st.progress(pct_progresso)
