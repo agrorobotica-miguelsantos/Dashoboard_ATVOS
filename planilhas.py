@@ -368,21 +368,18 @@ with col_graf1:
     fig_remessa.update_xaxes(showticklabels=True, row=1, col=1, title_text = "Remessa")
     fig_remessa.update_xaxes(showticklabels=False, row=2, col=1)
 
-    fig_remessa.layout.annotations = []
-
-    fig_remessa.add_annotation(
-        text="<b>PAV</b>",
-        x=0.5, xanchor='center',
-        y=1.03, yanchor='bottom', yref='y2 domain',
-        showarrow=False, textangle=0
-    )
-    
-    fig_remessa.add_annotation(
-        text="<b>Fertilidade</b>",
-        x=0.5, xanchor='center',
-        y=1.03, yanchor='bottom', yref='y domain',
-        showarrow=False, textangle=0
-    )
+    for idx, anno in enumerate(fig_remessa["layout"]["annotations"]):
+        texto_limpo = anno["text"].split('=')[-1]
+        posicao_y = 1.02 if idx == 1 else 0.44
+        anno.update(
+            text=f"<b>{texto_limpo}</b>",
+            x=0.5,
+            yref='paper',
+            y=posicao_y,
+            textangle=0,
+            xanchor='center',
+            yanchor='bottom'
+        )
 
     st.plotly_chart(aplicar_layout_grafico(fig_remessa, 400), use_container_width=True)
 
