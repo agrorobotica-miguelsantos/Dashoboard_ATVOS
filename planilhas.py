@@ -370,7 +370,7 @@ with col_graf1:
 
     for idx, anno in enumerate(fig_remessa["layout"]["annotations"]):
         texto_limpo = anno["text"].split('=')[-1]
-        posicao_y = 1.02 if idx == 1 else 0.44
+        posicao_y = 1.02 if idx == 1 or df_graf_remessa['Tipo'] == 'PAV' else 0.44
         anno.update(
             text=f"<b>{texto_limpo}</b>",
             x=0.5,
