@@ -27,7 +27,7 @@ st.markdown(
 def carregar_dados_locais():
     """Busca as planilhas na pasta padrão do OneDrive"""
     entrada = Path(
-        r"C:\Users\MiguelSantos\OneDrive - Agrorobotica Fotonica Em Certificacoes Agroambientais\AGROROBOTICA\PROJETOS\Dashoboard_ATVOS\pedidos"
+        r"\pedidos"
     )
     if not entrada.exists():
         return None
