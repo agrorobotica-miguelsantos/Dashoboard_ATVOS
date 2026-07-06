@@ -359,7 +359,7 @@ with col_graf1:
         yaxis_tickformat=",d"
     )
 
-    fig_remessa.for_each_annotation(lambda a: a.update(text="<b>{a.text.split('=')[-1]}</b>"))
+    fig_remessa.for_each_annotation(lambda a: a.update(text=f"<b>{a.text.split('=')[-1]}</b>"))
 
     st.plotly_chart(aplicar_layout_grafico(fig_remessa, 400), use_container_width=True)
 
