@@ -359,6 +359,7 @@ with col_graf1:
         yaxis_tickformat=",d"
     )
 
+    fig_remessa.update_yaxes(title_text="Nº Amostras")
     fig_remessa.update_xaxes(type="category", title_text="Remessa")
 
     fig_remessa.for_each_annotation(lambda a: a.update(text=f"<b>{a.text.split('=')[-1]}</b>"))
