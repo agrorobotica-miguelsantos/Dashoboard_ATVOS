@@ -354,6 +354,8 @@ fig_remessa.update_layout(
     yaxis_tickformat=",d"
 )
 
+st.plotly_chart(aplicar_layout_grafico(fig_remessa, 400), use_container_width=True)
+
 df_graf_unidade = df_filtrado.groupby(["Unidade", "Status"]).size().reset_index(name="Quantidade")
 
 fig_unidade = px.bar(
