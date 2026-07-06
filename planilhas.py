@@ -525,5 +525,6 @@ else:
 # ============================================================
 st.divider()
 st.caption(
-    "Dashboard executivo desenvolvido para acompanhamento físico-operacional de amostragens ATVOS."
+    "Dashboard desenvolvido para acompanhamento do quantitativo de amostras e status de conclusão das ordens de serviço ATVOS"
 )
+st.caption("© 2026 Agrorobótica")
