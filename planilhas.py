@@ -366,6 +366,17 @@ with col_graf1:
         title_text=""
     )
 
+    # Controla dinamicamente a exibição dos rótulos do eixo X com base nos tipos ativos
+    tipos_ativos = df_graf_remessa["Tipo"].unique()
+    
+    if len(tipos_ativos) == 2:
+        # Se os dois tipos estão ativos, limpa o de cima (row=2) e mantém o de baixo (row=1)
+        fig_remessa.update_xaxes(showticklabels=True, row=1, col=1, title_text="Remessa")
+        fig_remessa.update_xaxes(showticklabels=False, row=2, col=1)
+    else:
+        # Se apenas um tipo está ativo, o Plotly por padrão joga para o row=1. Forçamos o rótulo nele.
+        fig_remessa.update_xaxes(showticklabels=True, row=1, col=1, title_text="Remessa")
+
     # Move os títulos originais da direita para o topo dinamicamente (eles somem se o tipo sumir)
     for anno in fig_remessa['layout']['annotations']:
         texto_limpo = anno['text'].split('=')[-1]
