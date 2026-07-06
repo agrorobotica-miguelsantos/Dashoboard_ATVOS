@@ -329,7 +329,7 @@ st.progress(pct_progresso)
 # VISÃO GRÁFICA INTERATIVA
 # ============================================================
 
-st.markdown("### Volumetria por Unidade")
+st.divider()
 
 col_graf1, col_graf2 = st.columns(2)
 
