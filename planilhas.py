@@ -365,17 +365,6 @@ with col_graf1:
         categoryarray=ordem_remessas,
         title_text=""
     )
-    
-    # Controla dinamicamente a exibição dos rótulos do eixo X com base nos tipos ativos
-    tipos_ativos = df_graf_remessa["Tipo"].unique()
-    
-    if len(tipos_ativos) == 2:
-        # Se os dois tipos estão ativos, limpa o de cima (row=2) e mantém o de baixo (row=1)
-        fig_remessa.update_xaxes(showticklabels=True, row=1, col=1, title_text="Remessa")
-        fig_remessa.update_xaxes(showticklabels=False, row=2, col=1)
-    else:
-        # Se apenas um tipo está ativo, o Plotly por padrão joga para o row=1. Forçamos o rótulo nele.
-        fig_remessa.update_xaxes(showticklabels=True, row=1, col=1, title_text="Remessa")
 
     # Move os títulos originais da direita para o topo dinamicamente (eles somem se o tipo sumir)
     for anno in fig_remessa['layout']['annotations']:
@@ -383,7 +372,7 @@ with col_graf1:
         
         # Identifica se a anotação pertence ao gráfico superior ou inferior usando o próprio layout
         # Plotly nomeia os eixos como 'y', 'y2', etc.
-        eixo_y_associado = anno.get('yref', '')
+        eixo_y_associado = getattr(anno, 'yref', 'y domain')
         
         anno.update(
             text=f"<b>{texto_limpo}</b>",
@@ -394,7 +383,7 @@ with col_graf1:
             xanchor='center',
             yanchor='bottom'
         )
-    
+
     st.plotly_chart(aplicar_layout_grafico(fig_remessa, 400), use_container_width=True)
 
 with col_graf2:
