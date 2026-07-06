@@ -334,50 +334,55 @@ st.progress(pct_progresso)
 
 st.markdown("### Volumetria por Unidade")
 
-df_graf_remessa = df_filtrado.groupby(["Remessa", "Status"]).size().reset_index(name="Quantidade")
+col_graf1, col_graf2 = st.columns(2)
 
-fig_remessa = px.bar(
-    df_graf_remessa,
-    x="Remessa",
-    y="Quantidade",
-    color="Status",
-    color_discrete_map={"Concluído": CORES["verde"], "Pendente": CORES["vermelho"]},
-    barmode="stack",
-    text_auto=True
-)
+with col_graf1:
+    df_graf_remessa = df_filtrado.groupby(["Remessa", "Status"]).size().reset_index(name="Quantidade")
 
-fig_remessa.update_layout(
-    xaxis_title="Remessa",
-    yaxis_title="Nº Amostras",
-    legend_title_text="Status",
-    separators=",.",
-    yaxis_tickformat=",d"
-)
+    fig_remessa = px.bar(
+        df_graf_remessa,
+        x="Remessa",
+        y="Quantidade",
+        color="Status",
+        color_discrete_map={"Concluído": CORES["verde"], "Pendente": CORES["vermelho"]},
+        barmode="stack",
+        text_auto=True,
+        title="<b>Amostras por Remessa</b>"
+    )
 
-st.plotly_chart(aplicar_layout_grafico(fig_remessa, 400), use_container_width=True)
+    fig_remessa.update_layout(
+        xaxis_title="Remessa",
+        yaxis_title="Nº Amostras",
+        legend_title_text="Status",
+        separators=",.",
+        yaxis_tickformat=",d"
+    )
 
-df_graf_unidade = df_filtrado.groupby(["Unidade", "Status"]).size().reset_index(name="Quantidade")
+    st.plotly_chart(aplicar_layout_grafico(fig_remessa, 400), use_container_width=True)
 
-fig_unidade = px.bar(
-    df_graf_unidade,
-    x="Unidade",
-    y="Quantidade",
-    color="Status",
-    color_discrete_map={"Concluído": CORES["verde"], "Pendente": CORES["vermelho"]},
-    barmode="stack",
-    text_auto=True
-)
+with col_graf2:
+    df_graf_unidade = df_filtrado.groupby(["Unidade", "Status"]).size().reset_index(name="Quantidade")
 
-fig_unidade.update_layout(
-    xaxis_title="Unidade",
-    yaxis_title="Nº Amostras",
-    legend_title_text="Status",
-    separators=",.",
-    yaxis_tickformat=",d"
-)
+    fig_unidade = px.bar(
+        df_graf_unidade,
+        x="Unidade",
+        y="Quantidade",
+        color="Status",
+        color_discrete_map={"Concluído": CORES["verde"], "Pendente": CORES["vermelho"]},
+        barmode="stack",
+        text_auto=True,
+        title="<b>Amostras por Unidade</b>"
+    )
 
-# Aplica o mesmo layout limpo de fundo branco do primeiro painel
-st.plotly_chart(aplicar_layout_grafico(fig_unidade, 400), use_container_width=True)
+    fig_unidade.update_layout(
+        xaxis_title="Unidade",
+        yaxis_title="Nº Amostras",
+        legend_title_text="Status",
+        separators=",.",
+        yaxis_tickformat=",d"
+    )
+
+    st.plotly_chart(aplicar_layout_grafico(fig_unidade, 400), use_container_width=True)
 
 st.divider()
 
