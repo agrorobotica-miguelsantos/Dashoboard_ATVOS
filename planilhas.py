@@ -381,15 +381,19 @@ with col_graf1:
     for anno in fig_remessa['layout']['annotations']:
         texto_limpo = anno['text'].split('=')[-1]
         
-        # Identifica se a anotação pertence ao gráfico superior ou inferior usando o próprio layout
-        # Plotly nomeia os eixos como 'y', 'y2', etc.
-        eixo_y_associado = getattr(anno, 'yref', 'y domain')
+        # Define o eixo Y correto de forma fixa com base no texto para evitar sobreposição
+        if len(tipos_ativos) == 2:
+            # Se os dois estão na tela, PAV fica em cima (y2) e Fertilidade embaixo (y)
+            eixo_y_correto = 'y2 domain' if texto_limpo == 'PAV' else 'y domain'
+        else:
+            # Se apenas um está na tela, ele sempre usará o primeiro eixo disponível (y)
+            eixo_y_correto = 'y domain'
         
         anno.update(
             text=f"<b>{texto_limpo}</b>",
             x=0.5,
-            yref=eixo_y_associado if eixo_y_associado != 'paper' else 'y domain',
-            y=1.04,            # Posiciona levemente acima do teto de cada subgráfico ativo
+            yref=eixo_y_correto,
+            y=1.04,            # Distância perfeita acima de cada respectivo subgráfico
             textangle=0,       # Texto na horizontal
             xanchor='center',
             yanchor='bottom'
