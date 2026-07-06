@@ -26,7 +26,7 @@ st.markdown(
 @st.cache_data(ttl=3600)
 def carregar_dados_locais():
     """Busca as planilhas na pasta padrão do OneDrive"""
-    entrada = Path("\pedidos")
+    entrada = Path(r"\pedidos")
     if not entrada.exists():
         return None
 
@@ -73,23 +73,26 @@ st.sidebar.image(
     width=300,
 )
 
+# ---- BLOCO DE DIAGNÓSTICO (Remova após descobrir o erro) ----
+st.subheader("🔍 Diagnóstico de Caminhos do Servidor")
+diretorio_atual = Path(".")
+todos_os_arquivos = [str(p) for p in diretorio_atual.glob("*")]
+st.write("**Arquivos/Pastas na raiz do projeto:**", todos_os_arquivos)
+
+pasta_pedidos = Path("pedidos")
+st.write(f"A pasta '{pasta_pedidos}' existe?", pasta_pedidos.exists())
+
+if pasta_pedidos.exists():
+    arquivos_dentro = [str(p) for p in pasta_pedidos.rglob("*")]
+    st.write("**Arquivos encontrados dentro de pedidos:**", arquivos_dentro)
+st.markdown("---")
+# -------------------------------------------------------------
+
 df_bruto = carregar_dados_locais()
-df_fazendas = pd.read_excel("fazendas.xlsx")
 
-df_bruto = df_bruto.merge(df_fazendas, how = 'inner', left_on = 'Fazenda', right_on = 'Cod_Fazenda')
-df_bruto['Nome_Fazenda'] = df_bruto['Nome_Fazenda'].str.strip()
-
-# Padronização e criação da coluna de Status baseada na referência do Ca
-col_ref = "Ca_(mmolc/dm3)"
-if col_ref not in df_bruto.columns:
-    st.error(
-        f"A coluna de referência '{col_ref}' não foi encontrada nos dados carregados."
-    )
+if df_bruto.empty:
+    st.error("🚨 Erro: O DataFrame continua vazio após o carregamento.")
     st.stop()
-
-df_bruto["Status"] = df_bruto[col_ref].apply(
-    lambda x: "Concluído" if pd.notna(x) else "Pendente"
-)
 
 # %% 4. FILTROS DINÂMICOS EM CASCATA
 st.sidebar.subheader("Filtros de Pesquisa")
