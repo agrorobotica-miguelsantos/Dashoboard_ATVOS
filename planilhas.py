@@ -30,8 +30,8 @@ def carregar_dados_locais():
     if not entrada.exists():
         return None
 
-    planilhas_fertilidade = list(entrada.glob("F2026*S.xlsx"))
-    planilhas_pav = list(entrada.glob("PAV2026*S.xlsx"))
+    planilhas_fertilidade = list(entrada.rglob("F2026*S.xlsx"))
+    planilhas_pav = list(entrada.rglob("PAV2026*S.xlsx"))
     lista_combinada = []
 
     # Processamento Fertilidade
