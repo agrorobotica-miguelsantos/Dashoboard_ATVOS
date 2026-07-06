@@ -369,19 +369,7 @@ with col_graf1:
         title_text="Remessa",
         matches="x")
 
-    for anno in fig_remessa['layout']['annotations']:
-        # Extrai o nome limpo (ex: "Fertilidade" ou "PAV")
-        texto_limpo = anno['text'].split('=')[-1]
-        
-        anno.update(
-            text=f"<b>{texto_limpo}</b>",
-            x=0.5,             # Centraliza horizontalmente no meio do gráfico
-            yref='y domain',   # Usa a escala interna do gráfico para o eixo Y
-            y=1.03,            # Coloca logo acima do teto do gráfico (1.0 é o topo exato)
-            textangle=0,       # Remove a rotação vertical (deixa o texto horizontal)
-            xanchor='center',
-            yanchor='bottom'
-        )
+    fig_remessa.for_each_annotation(lambda a: a.update(text=f"<b>{a.text.split('=')[-1]}</b>"))
 
     st.plotly_chart(aplicar_layout_grafico(fig_remessa, 400), use_container_width=True)
 
