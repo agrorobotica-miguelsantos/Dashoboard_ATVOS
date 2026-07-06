@@ -26,14 +26,12 @@ st.markdown(
 @st.cache_data(ttl=3600)
 def carregar_dados_locais():
     """Busca as planilhas na pasta padrão do OneDrive"""
-    entrada = Path(
-        r"\pedidos"
-    )
+    entrada = Path("pedidos")
     if not entrada.exists():
         return None
 
     planilhas_fertilidade = list(entrada.glob("F2026*S.xlsx"))
-    planilhas_pav = list(entrada.rglob("PAV2026*S.xlsx"))
+    planilhas_pav = list(entrada.glob("PAV2026*S.xlsx"))
     lista_combinada = []
 
     # Processamento Fertilidade
