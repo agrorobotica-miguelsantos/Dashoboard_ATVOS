@@ -345,6 +345,7 @@ with col_graf1:
         y="Quantidade",
         color="Status",
         facet_row="Tipo",
+        facet_row_spacing=0.12,
         color_discrete_map={"Concluído": CORES["verde"], "Pendente": CORES["vermelho"]},
         barmode="stack",
         text_auto=True,
@@ -360,7 +361,7 @@ with col_graf1:
     )
 
     fig_remessa.update_yaxes(title_text="Nº Amostras")
-    fig_remessa.update_xaxes(type="category", title_text="Remessa")
+    fig_remessa.update_xaxes(type="category", title_text="Remessa", matches="x")
 
     fig_remessa.for_each_annotation(lambda a: a.update(text=f"<b>{a.text.split('=')[-1]}</b>"))
 
