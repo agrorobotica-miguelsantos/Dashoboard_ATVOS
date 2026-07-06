@@ -26,9 +26,9 @@ st.markdown(
 @st.cache_data(ttl=3600)
 def carregar_dados_locais():
     """Busca as planilhas na pasta padrão do OneDrive"""
-    entrada = Path(r"\pedidos")
+    entrada = Path("pedidos")
     if not entrada.exists():
-        return None
+        return pd.DataFrame()
 
     planilhas_fertilidade = list(entrada.rglob("F2026*S.xlsx"))
     planilhas_pav = list(entrada.rglob("PAV2026*S.xlsx"))
@@ -37,33 +37,36 @@ def carregar_dados_locais():
     # Processamento Fertilidade
     for planilha in planilhas_fertilidade:
         try:
+            # CORREÇÃO: Removido o engine="calamine" para usar o padrão openpyxl
             df_temp = pd.read_excel(planilha)
-            remessa = re.search(r"(?<=F2026)(\d{3})", str(planilha.stem)).group(
-                0
-            )
+            
+            remessa = re.search(r"(?<=F2026)(\d{3})", str(planilha.stem)).group(0)
             df_temp.insert(0, "Remessa", str(remessa))
             df_temp.insert(1, "Tipo", "Fertilidade")
             df_temp.columns = df_temp.columns.str.strip()
             lista_combinada.append(df_temp)
-        except Exception:
-            pass
+        except Exception as e:
+            # Mostra o erro na tela caso a leitura de alguma planilha específica falhe
+            st.error(f"Erro ao ler a planilha {planilha.name}: {e}")
 
     # Processamento PAV
     for planilha in planilhas_pav:
         try:
+            # CORREÇÃO: Removido o engine="calamine" para usar o padrão openpyxl
             df_temp = pd.read_excel(planilha)
-            remessa = re.search(
-                r"(?<=PAV2026)(\d{3})", str(planilha.stem)
-            ).group(0)
+            
+            remessa = re.search(r"(?<=PAV2026)(\d{3})", str(planilha.stem)).group(0)
             df_temp.insert(0, "Remessa", str(remessa))
             df_temp.insert(1, "Tipo", "PAV")
             df_temp.columns = df_temp.columns.str.strip()
             lista_combinada.append(df_temp)
-        except Exception:
-            pass
+        except Exception as e:
+            # Mostra o erro na tela caso a leitura de alguma planilha específica falhe
+            st.error(f"Erro ao ler a planilha {planilha.name}: {e}")
 
     if not lista_combinada:
         return pd.DataFrame()
+        
     return pd.concat(lista_combinada, ignore_index=True)
 
 
