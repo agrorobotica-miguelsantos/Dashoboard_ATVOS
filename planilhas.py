@@ -320,9 +320,9 @@ with tab_geral:
     with c1:
         card_kpi("Total de Amostras", f"{format_num(total_amostras)} un", "Volume total recebido")
     with c2:
-        card_kpi("Entregue", f"{format_num(concluidas)} un", f"{pct_progresso:.1%} concluído")
+        card_kpi("Entregue", f"{format_num(concluidas)} un", f"{pct_progresso:.0%} concluído")
     with c3:
-        card_kpi("Pendentes", f"{format_num(pendentes)} un", f"{(1 - pct_progresso):.1%} em andamento")
+        card_kpi("Pendentes", f"{format_num(pendentes)} un", f"{(1 - pct_progresso):.0%} em andamento")
 
     st.markdown("<br>", unsafe_allow_html=True)
     st.progress(pct_progresso)
