@@ -323,13 +323,13 @@ tab_geral, tab_prazos = st.tabs(["Quantitativo e Status", "Prazos"])
 
 with tab_geral:
     total_amostras = len(df_filtrado)
-    concluidas = (df_filtrado["Status"] == "Entregue").sum()
+    concluidas = (df_filtrado["Status"] == "Concluído").sum()
     pendentes = (df_filtrado["Status"] == "Pendente").sum()
     pct_progresso = concluidas / total_amostras if total_amostras > 0 else 0
 
     c1, c2, c3 = st.columns(3)
     with c1:
-        card_kpi("Total de Amostras", f"{format_num(total_amostras)} un", "Volume total em banco")
+        card_kpi("Total de Amostras", f"{format_num(total_amostras)} un", "Volume total recebido")
     with c2:
         card_kpi("Entregue", f"{format_num(concluidas)} un", f"{pct_progresso:.1%} concluído")
     with c3:
