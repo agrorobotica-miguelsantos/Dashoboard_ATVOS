@@ -247,7 +247,7 @@ with st.sidebar:
 
     st.divider()
 
-    busca_livre = st.text_input(
+    busca_fazenda = st.text_input(
         "Busca por Fazenda", 
         placeholder="Ex: 420136",
         help="Pesquise utilizando o código da fazenda"
@@ -255,10 +255,12 @@ with st.sidebar:
 
     df_filtrado = df_bruto.copy()
 
-    if busca_livre:
-        termo = busca_livre.lower()
-        mask_cod = df_filtrado["Fazenda"].astype(str).str.lower().str.contains(termo, na=False)
-        df_filtrado = df_filtrado[mask_cod]
+    if busca_fazenda:
+        termos = [re.escape(t.strip().lower()) for t in re.split(r'[,;\s]+', busca_fazenda) if t.strip()] # em que t corresponde à string
+        if termos:
+            padrao_regex = "|".join(termos)
+            mask_cod = df_filtrado["Fazenda"].astype(str).str.lower().str.contains(padrao_regex, na=False, regex=True)
+            df_filtrado = df_filtrado[mask_cod]
 
     tipos_disponiveis = sorted(df_filtrado["Tipo"].unique()) if "Tipo" in df_filtrado.columns else ["Geral"]
     tipo_select = st.multiselect(
