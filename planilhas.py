@@ -248,7 +248,7 @@ with st.sidebar:
     st.divider()
 
     busca_livre = st.text_input(
-        "Busca Fazenda", 
+        "Busca por Fazenda", 
         placeholder="Ex: 420136",
         help="Pesquise utilizando o código da fazenda"
     )
