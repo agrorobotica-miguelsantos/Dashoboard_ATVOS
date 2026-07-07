@@ -393,14 +393,14 @@ with tab_geral:
     if "Unidade" in df_filtrado.columns:
         for unidade in sorted(df_filtrado["Unidade"].dropna().unique()):
             df_unidade = df_filtrado[df_filtrado["Unidade"] == unidade]
-            t_uni, c_uni = len(df_unidade), (df_unidade["Status"] == "Entregue").sum()
+            t_uni, c_uni = len(df_unidade), (df_unidade["Status"] == "Concluído").sum()
             p_uni = c_uni / t_uni if t_uni > 0 else 0
             
             icone = "✅" if p_uni == 1 else "⏳" if p_uni > 0 else "🔴"
             with st.expander(f"{icone} Unidade {unidade} — {p_uni:.1%} Concluído ({c_uni} de {t_uni} amostras)"):
                 resumo = df_unidade.groupby(["Remessa", "Tipo", col_cod_fazenda, col_nome_fazenda]).agg(
                     Total=("Status", "count"),
-                    Realizadas=("Status", lambda x: (x == "Entregue").sum()),
+                    Realizadas=("Status", lambda x: (x == "Concluído").sum()),
                     Faltantes=("Status", lambda x: (x == "Pendente").sum())
                 ).reset_index()
                 resumo["Progresso"] = (resumo["Realizadas"] / resumo["Total"]) * 100
