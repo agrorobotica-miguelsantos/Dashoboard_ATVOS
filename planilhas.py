@@ -338,7 +338,6 @@ with tab_geral:
     st.markdown("<br>", unsafe_allow_html=True)
     st.progress(pct_progresso)
 
-    st.markdown("### Volumetria por Unidade e Remessa")
     col_graf1, col_graf2 = st.columns(2)
 
     with col_graf1:
@@ -367,7 +366,7 @@ with tab_geral:
 
         for idx, anno in enumerate(fig_remessa['layout']['annotations']):
             texto_limpo = anno.text.split('=')[-1].strip()
-            eixo_y_correto = 'y2 domain' if len(tipos_ativos) == 2 and texto_limpo == 'PAV' else 'y domain'
+            eixo_y_correto = 'y2 domain' if len(tipos_ativos) == 2 and texto_limpo == 'Fertilidade' else 'y domain'
             anno.update(text=f"<b>{texto_limpo}</b>", x=0.5, yref=eixo_y_correto, y=1.04, textangle=0, xanchor='center', yanchor='bottom')
 
         st.plotly_chart(aplicar_layout_grafico(fig_remessa, 420), use_container_width=True)
@@ -422,6 +421,13 @@ with tab_geral:
                         },
                         hide_index=True, use_container_width=True
                     )
+
+with tab_prazos:
+    
+    
+    df_entregue = df_filtrado[df_filtrado['Status'] == 'Concluído']
+    df_pendente = df_filtrado[df_filtrado['Status'] == 'Pendente']
+
 
 # ============================================================
 # RODAPÉ
