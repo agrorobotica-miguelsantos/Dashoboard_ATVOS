@@ -315,225 +315,113 @@ if df_filtrado.empty:
     st.info("Nenhum dado corresponde aos filtros selecionados na barra lateral.")
     st.stop()
 
-
 # ============================================================
-# MÉTRICAS (KPI CARDS CUSTOMIZADOS)
-# ============================================================
-
-total_amostras = len(df_filtrado)
-concluidas = (df_filtrado["Status"] == "Concluído").sum()
-pendentes = (df_filtrado["Status"] == "Pendente").sum()
-pct_progresso = concluidas / total_amostras if total_amostras > 0 else 0
-
-c1, c2, c3 = st.columns(3)
-
-with c1:
-    card_kpi("Total de Amostras", f"{format_num(total_amostras)} un", "Amostras recebidas")
-
-with c2:
-    card_kpi("Entregue", f"{format_num(concluidas)} un", f"{pct_progresso:.1%} concluído")
-
-with c3:
-    card_kpi("Pendentes", f"{format_num(pendentes)} un", f"{(1 - pct_progresso):.1%} em andamento")
-
-st.markdown("<br>", unsafe_allow_html=True)
-st.progress(pct_progresso)
-
-
-# ============================================================
-# VISÃO GRÁFICA INTERATIVA
+# ESTRUTURAÇÃO EM ABAS
 # ============================================================
 
-st.divider()
+tab_geral, tab_prazos = st.tabs(["Quantitativo e Status", "Prazos"])
 
-col_graf1, col_graf2 = st.columns(2)
+with tab_geral:
+    total_amostras = len(df_filtrado)
+    concluidas = (df_filtrado["Status"] == "Entregue").sum()
+    pendentes = (df_filtrado["Status"] == "Pendente").sum()
+    pct_progresso = concluidas / total_amostras if total_amostras > 0 else 0
 
-with col_graf1:
-    df_graf_remessa = df_filtrado.groupby(["Remessa", "Status", "Tipo"]).size().reset_index(name="Quantidade")
-    ordem_remessas = sorted(df_graf_remessa["Remessa"].unique())
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        card_kpi("Total de Amostras", f"{format_num(total_amostras)} un", "Volume total em banco")
+    with c2:
+        card_kpi("Entregue", f"{format_num(concluidas)} un", f"{pct_progresso:.1%} concluído")
+    with c3:
+        card_kpi("Pendentes", f"{format_num(pendentes)} un", f"{(1 - pct_progresso):.1%} em andamento")
 
-    fig_remessa = px.bar(
-        df_graf_remessa,
-        x="Remessa",
-        y="Quantidade",
-        color="Status",
-        facet_row="Tipo",
-        facet_row_spacing=0.15,
-        color_discrete_map={"Concluído": CORES["verde"], "Pendente": CORES["vermelho"]},
-        barmode="stack",
-        text_auto=True,
-        title="<b>Amostras por Remessa e Tipo</b>"
-    )
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.progress(pct_progresso)
 
-    fig_remessa.update_layout(
-        xaxis_title="Remessa",
-        yaxis_title="Nº Amostras",
-        legend_title_text="Status",
-        separators=",.",
-        yaxis_tickformat=",d"
-    )
+    st.markdown("### Volumetria por Unidade e Remessa")
+    col_graf1, col_graf2 = st.columns(2)
 
-    fig_remessa.update_yaxes(title_text="Nº Amostras")
-    fig_remessa.update_xaxes(
-        type="category",
-        categoryorder="array",
-        categoryarray=ordem_remessas,
-        title_text=""
-    )
+    with col_graf1:
+        df_graf_remessa = df_filtrado.groupby(["Remessa", "Status", "Tipo"]).size().reset_index(name="Quantidade")
+        df_graf_remessa["Remessa"] = df_graf_remessa["Remessa"].astype(str)
+        ordem_remessas = sorted(df_graf_remessa["Remessa"].unique())
 
-    # Controla dinamicamente a exibição dos rótulos do eixo X com base nos tipos ativos
-    tipos_ativos = df_graf_remessa["Tipo"].unique()
-    
-    if len(tipos_ativos) == 2:
-        # Se os dois tipos estão ativos, limpa o de cima (row=2) e mantém o de baixo (row=1)
-        fig_remessa.update_xaxes(showticklabels=True, row=1, col=1, title_text="Remessa")
-        fig_remessa.update_xaxes(showticklabels=False, row=2, col=1)
-    else:
-        # Se apenas um tipo está ativo, o Plotly por padrão joga para o row=1. Forçamos o rótulo nele.
-        fig_remessa.update_xaxes(showticklabels=True, row=1, col=1, title_text="Remessa")
-
-    # Move os títulos originais da direita para o topo dinamicamente (eles somem se o tipo sumir)
-    for anno in fig_remessa['layout']['annotations']:
-        texto_limpo = anno['text'].split('=')[-1]
-        
-        # Define o eixo Y correto de forma fixa com base no texto para evitar sobreposição
-        if len(tipos_ativos) == 2:
-            # Se os dois estão na tela, Fertilidade fica em cima (y2) e PAV embaixo (y)
-            eixo_y_correto = 'y2 domain' if texto_limpo == 'Fertilidade' else 'y domain'
-        else:
-            # Se apenas um está na tela, ele sempre usará o primeiro eixo disponível (y)
-            eixo_y_correto = 'y domain'
-        
-        anno.update(
-            text=f"<b>{texto_limpo}</b>",
-            x=0.5,
-            yref=eixo_y_correto,
-            y=1.04,            # Distância perfeita acima de cada respectivo subgráfico
-            textangle=0,       # Texto na horizontal
-            xanchor='center',
-            yanchor='bottom'
+        fig_remessa = px.bar(
+            df_graf_remessa,
+            x="Remessa", y="Quantidade", color="Status",
+            facet_row="Tipo", facet_row_spacing=0.15,
+            color_discrete_map={"Entregue": CORES["verde"], "Pendente": CORES["vermelho"]},
+            barmode="stack", text_auto=True,
+            title="<b>Amostras por Remessa e Tipo</b>"
         )
+        fig_remessa.update_layout(legend_title_text="Status", separators=",.", yaxis_tickformat=",d")
+        fig_remessa.update_yaxes(title_text="Nº Amostras")
+        fig_remessa.update_xaxes(type="category", categoryorder="array", categoryarray=ordem_remessas, title_text="")
+        
+        tipos_ativos = df_graf_remessa["Tipo"].unique()
+        if len(tipos_ativos) == 2:
+            fig_remessa.update_xaxes(showticklabels=True, row=1, col=1, title_text="Remessa")
+            fig_remessa.update_xaxes(showticklabels=False, row=2, col=1)
+        else:
+            fig_remessa.update_xaxes(showticklabels=True, row=1, col=1, title_text="Remessa")
 
-    st.plotly_chart(aplicar_layout_grafico(fig_remessa, 400), use_container_width=True)
+        for idx, anno in enumerate(fig_remessa['layout']['annotations']):
+            texto_limpo = anno.text.split('=')[-1].strip()
+            eixo_y_correto = 'y2 domain' if len(tipos_ativos) == 2 and texto_limpo == 'PAV' else 'y domain'
+            anno.update(text=f"<b>{texto_limpo}</b>", x=0.5, yref=eixo_y_correto, y=1.04, textangle=0, xanchor='center', yanchor='bottom')
 
-with col_graf2:
-    df_graf_unidade = df_filtrado.groupby(["Unidade", "Status"]).size().reset_index(name="Quantidade")
+        st.plotly_chart(aplicar_layout_grafico(fig_remessa, 420), use_container_width=True)
 
-    fig_unidade = px.bar(
-        df_graf_unidade,
-        x="Unidade",
-        y="Quantidade",
-        color="Status",
-        color_discrete_map={"Concluído": CORES["verde"], "Pendente": CORES["vermelho"]},
-        barmode="stack",
-        text_auto=True,
-        title="<b>Amostras por Unidade</b>"
-    )
+    with col_graf2:
+        df_graf_unidade = df_filtrado.groupby(["Unidade", "Status"]).size().reset_index(name="Quantidade")
+        fig_unidade = px.bar(
+            df_graf_unidade,
+            x="Unidade", y="Quantidade", color="Status",
+            color_discrete_map={"Entregue": CORES["verde"], "Pendente": CORES["vermelho"]},
+            barmode="stack", text_auto=True, title="<b>Amostras por Unidade</b>"
+        )
+        fig_unidade.update_layout(xaxis_title="Unidade", yaxis_title="Nº Amostras", legend_title_text="Status", separators=",.", yaxis_tickformat=",d")
+        st.plotly_chart(aplicar_layout_grafico(fig_unidade, 420), use_container_width=True)
 
-    fig_unidade.update_layout(
-        xaxis_title="Unidade",
-        yaxis_title="Nº Amostras",
-        legend_title_text="Status",
-        separators=",.",
-        yaxis_tickformat=",d"
-    )
+    st.divider()
 
-    st.plotly_chart(aplicar_layout_grafico(fig_unidade, 400), use_container_width=True)
-
-st.divider()
-
-
-# ============================================================
-# DETALHAMENTO DE FAZENDAS (VISÃO TABULAR)
-# ============================================================
-
-st.markdown("### Demonstrativo - Fazendas por Unidade")
-
-ocultar_concluidas = st.toggle(
-    "Esconder fazendas 100% concluídas", 
-    value=False, 
-    help="Ative para focar apenas no que possui pendência."
-)
-
-col_cod_fazenda = "Fazenda"
-col_nome_fazenda = "Nome_Fazenda"
-
-tem_cod = col_cod_fazenda in df_filtrado.columns
-tem_nome = col_nome_fazenda in df_filtrado.columns
-
-if "Unidade" in df_filtrado.columns and (tem_cod or tem_nome):
-    unidades_unicas = sorted(df_filtrado["Unidade"].dropna().unique())
+    # --- TABELA DE DETALHAMENTO ---
+    st.markdown("### Demonstrativo - Fazendas por Unidade")
+    ocultar_concluidas = st.toggle("Esconder fazendas 100% concluídas", value=False)
     
-    if not unidades_unicas:
-        st.warning("Nenhuma unidade encontrada nos dados filtrados.")
-    
-    for unidade in unidades_unicas:
-        df_unidade = df_filtrado[df_filtrado["Unidade"] == unidade]
-        
-        total_uni = len(df_unidade)
-        conc_uni = (df_unidade["Status"] == "Concluído").sum()
-        prog_uni = conc_uni / total_uni if total_uni > 0 else 0
-        
-        icone = "✅" if prog_uni == 1 else "⏳" if prog_uni > 0 else "🔴"
-        titulo_expander = f"{icone} Unidade {unidade} — {prog_uni:.1%} Concluído ({conc_uni} de {total_uni} amostras)"
-        
-        with st.expander(titulo_expander, expanded=False):
-            colunas_agrupamento = []
+    col_cod_fazenda, col_nome_fazenda = "Fazenda", "Nome_Fazenda"
+    if "Unidade" in df_filtrado.columns:
+        for unidade in sorted(df_filtrado["Unidade"].dropna().unique()):
+            df_unidade = df_filtrado[df_filtrado["Unidade"] == unidade]
+            t_uni, c_uni = len(df_unidade), (df_unidade["Status"] == "Entregue").sum()
+            p_uni = c_uni / t_uni if t_uni > 0 else 0
             
-            if "Remessa" in df_unidade.columns: 
-                colunas_agrupamento.append("Remessa")
-            if "Tipo" in df_unidade.columns:
-                colunas_agrupamento.append("Tipo")
+            icone = "✅" if p_uni == 1 else "⏳" if p_uni > 0 else "🔴"
+            with st.expander(f"{icone} Unidade {unidade} — {p_uni:.1%} Concluído ({c_uni} de {t_uni} amostras)"):
+                resumo = df_unidade.groupby(["Remessa", "Tipo", col_cod_fazenda, col_nome_fazenda]).agg(
+                    Total=("Status", "count"),
+                    Realizadas=("Status", lambda x: (x == "Entregue").sum()),
+                    Faltantes=("Status", lambda x: (x == "Pendente").sum())
+                ).reset_index()
+                resumo["Progresso"] = (resumo["Realizadas"] / resumo["Total"]) * 100
                 
-            if tem_cod: colunas_agrupamento.append(col_cod_fazenda)
-            if tem_nome: colunas_agrupamento.append(col_nome_fazenda)
-            
-            resumo_tabela = df_unidade.groupby(colunas_agrupamento).agg(
-                Total=("Status", "count"),
-                Concluídas=("Status", lambda x: (x == "Concluído").sum()),
-                Pendentes=("Status", lambda x: (x == "Pendente").sum())
-            ).reset_index()
-            
-            resumo_tabela["Progresso"] = (resumo_tabela["Concluídas"] / resumo_tabela["Total"]) * 100
-            
-            if ocultar_concluidas:
-                resumo_tabela = resumo_tabela[resumo_tabela["Progresso"] < 100]
-            
-            if resumo_tabela.empty:
-                st.success("Todas as fazendas listadas para esta unidade já estão 100% concluídas.")
-            else:
-                resumo_tabela = resumo_tabela.sort_values(by=["Progresso", "Total"], ascending=[True, False])
+                if ocultar_concluidas:
+                    resumo = resumo[resumo["Progresso"] < 100]
                 
-                config_colunas = {
-                    "Total": st.column_config.NumberColumn("Total de Amostras", format="%d"),
-                    "Concluídas": st.column_config.NumberColumn("✅ Realizadas", format="%d"),
-                    "Pendentes": st.column_config.NumberColumn("⏳ Faltantes", format="%d"),
-                    "Progresso": st.column_config.ProgressColumn(
-                        "% Conclusão",
-                        help="Barra visual de progresso da fazenda",
-                        format="%.1f %%",
-                        min_value=0,
-                        max_value=100
+                if resumo.empty:
+                    st.success("Todas as fazendas desta unidade estão concluídas.")
+                else:
+                    st.dataframe(
+                        resumo.sort_values(by=["Progresso", "Total"], ascending=[True, False]),
+                        column_config={
+                            "Total": st.column_config.NumberColumn("Total"),
+                            "Realizadas": st.column_config.NumberColumn("✅ Realizadas"),
+                            "Faltantes": st.column_config.NumberColumn("⏳ Faltantes"),
+                            "Progresso": st.column_config.ProgressColumn("% Conclusão", format="%.1f %%", min_value=0, max_value=100),
+                            "Remessa": st.column_config.TextColumn("Remessa")
+                        },
+                        hide_index=True, use_container_width=True
                     )
-                }
-                
-                if "Remessa" in df_unidade.columns:
-                    config_colunas["Remessa"] = st.column_config.TextColumn("Remessa", width="small")
-                if "Tipo" in df_unidade.columns:
-                    config_colunas["Tipo"] = st.column_config.TextColumn("Amostragem", width="small")
-                if tem_cod:
-                    config_colunas[col_cod_fazenda] = st.column_config.TextColumn("Código Fazenda", width="small")
-                if tem_nome:
-                    config_colunas[col_nome_fazenda] = st.column_config.TextColumn("Nome da Fazenda", width="medium")
-                
-                st.dataframe(
-                    resumo_tabela,
-                    column_config=config_colunas,
-                    hide_index=True,
-                    use_container_width=True
-                )
-else:
-    st.info("Colunas essenciais de Unidade/Fazenda não encontradas para gerar a visão tabular.")
 
 # ============================================================
 # RODAPÉ
