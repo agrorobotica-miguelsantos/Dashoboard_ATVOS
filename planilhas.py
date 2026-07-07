@@ -215,18 +215,8 @@ df_fazendas = pd.read_excel("fazendas.xlsx")
 df_datas = pd.read_excel("datas_remessas.xlsx", dtype={'Remessa': str})
 df_bruto = (
     df_bruto
-    .merge(
-        df_fazendas, 
-        how='inner', 
-        left_on='Fazenda', 
-        right_on='Cod_Fazenda'
-    )
-    .merge(
-        df_datas, 
-        how='inner', 
-        left_on=['Remessa', 'Unidade', 'Tipo'], 
-        right_on=['Remessa', 'Unidade', 'Tipo']
-    )
+    .merge(df_fazendas, how='inner', left_on='Fazenda', right_on='Cod_Fazenda')
+    .merge(df_datas, how='inner', left_on=['Remessa', 'Unidade', 'Tipo'], right_on=['Remessa', 'Unidade', 'Tipo'])
 )
 df_bruto['Nome_Fazenda'] = df_bruto['Nome_Fazenda'].str.strip()
 
@@ -249,7 +239,6 @@ with st.sidebar:
     if logo_path.exists():
         st.image(str(logo_path), width=250)
 
-    st.markdown("## Gestão de Amostras")
     st.caption("Filtros gerais")
 
     if st.button("🔄 Atualizar Dados", use_container_width=True):
