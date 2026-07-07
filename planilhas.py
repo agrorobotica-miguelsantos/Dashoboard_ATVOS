@@ -377,7 +377,7 @@ with tab_geral:
         fig_unidade = px.bar(
             df_graf_unidade,
             x="Unidade", y="Quantidade", color="Status",
-            color_discrete_map={"Entregue": CORES["verde"], "Pendente": CORES["vermelho"]},
+            color_discrete_map={"Concluído": CORES["verde"], "Pendente": CORES["vermelho"]},
             barmode="stack", text_auto=True, title="<b>Amostras por Unidade</b>"
         )
         fig_unidade.update_layout(xaxis_title="Unidade", yaxis_title="Nº Amostras", legend_title_text="Status", separators=",.", yaxis_tickformat=",d")
