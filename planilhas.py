@@ -301,9 +301,9 @@ hora_brasilia = dt.datetime.now(ZoneInfo("America/Sao_Paulo"))
 st.markdown(
     f"""
     <div class="hero">
-        <div class="hero-title">Monitoramento de Entragas — ATVOS</div>
+        <div class="hero-title">Monitoramento de Entregas — ATVOS</div>
         <div class="hero-subtitle">
-            Monitoramento do quantitativo de amostras e status de conclusão por remesa, tipo e unidade | 
+            Acompanhamento do quantitativo de amostras e status de conclusão por remesa, tipo e unidade | 
             Atualizado em {hora_brasilia.strftime("%d/%m/%Y %H:%M")}
         </div>
     </div>
