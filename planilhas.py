@@ -350,7 +350,7 @@ with tab_geral:
             df_graf_remessa,
             x="Remessa", y="Quantidade", color="Status",
             facet_row="Tipo", facet_row_spacing=0.15,
-            color_discrete_map={"Entregue": CORES["verde"], "Pendente": CORES["vermelho"]},
+            color_discrete_map={"Concluído": CORES["verde"], "Pendente": CORES["vermelho"]},
             barmode="stack", text_auto=True,
             title="<b>Amostras por Remessa e Tipo</b>"
         )
