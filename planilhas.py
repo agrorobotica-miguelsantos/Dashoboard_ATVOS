@@ -3,7 +3,6 @@
 # PAINEL - ACOMPANHAMENTO DE AMOSTRAGENS | ATVOS
 # ============================================================
 
-import json
 import re
 import datetime as dt
 from pathlib import Path
@@ -13,9 +12,6 @@ import pandas as pd
 import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
-import geopandas as gpd
-from shapely.geometry import Point
-import matplotlib.pyplot as plt
 
 # ============================================================
 # CONFIGURAÇÕES GERAIS E PALETA DE CORES
@@ -204,12 +200,6 @@ def carregar_dados_locais():
         
     return pd.concat(lista_combinada, ignore_index=True)
 
-def carregar_shapefile():
-    unidades_gdf = gpd.read_file(r"unidades\UEL\UEL.shp")
-    unidades_gdf = unidades_gdf.to_crs(epsg=4326)
-    unidades_gdf["geometry"] = unidades_gdf["geometry"].simplify(tolerance=0.0001, preserve_topology=True)
-    unidades_gdf["id"] = unidades_gdf.index.astype(str)
-    return unidades_gdf
 
 # ============================================================
 # PROCESSAMENTO E TRATAMENTO DA BASE
@@ -238,6 +228,7 @@ if col_ref not in df_bruto.columns:
 df_bruto["Status"] = df_bruto[col_ref].apply(
     lambda x: "Concluído" if pd.notna(x) else "Pendente"
 )
+
 
 # ============================================================
 # SIDEBAR (FILTROS)
@@ -319,7 +310,7 @@ if df_filtrado.empty:
 # ESTRUTURAÇÃO EM ABAS
 # ============================================================
 
-tab_geral, tab_prazos, tab_mapas = st.tabs(["Quantitativo e Status", "Prazos", "GeoVisualização"])
+tab_geral, tab_prazos = st.tabs(["Quantitativo e Status", "Prazos"])
 
 with tab_geral:
     total_amostras = len(df_filtrado)
@@ -425,42 +416,10 @@ with tab_geral:
 
 with tab_prazos:
     
+    
     df_entregue = df_filtrado[df_filtrado['Status'] == 'Concluído']
     df_pendente = df_filtrado[df_filtrado['Status'] == 'Pendente']
 
-with tab_mapas:
-    st.markdown("### Mapa Unidades")
-    gdf_unidades = carregar_shapefile()
-
-    geojson_unidades = json.loads(gdf_unidades.to_json())
-    minx, miny, maxx, maxy = gdf_unidades.total_bounds
-    centro_lat = (miny + maxy) / 2
-    centro_lon = (minx + maxx) / 2
-
-    fig_mapa = go.Figure(
-        go.Choroplethmap(
-            geojson=geojson_unidades,
-            locations=gdf_unidades["id"],
-            z=[1] * len(gdf_unidades),
-            colorscale=[[0, "#74C69D"], [1, "#74C69D"]],
-            marker_opacity=0.4,
-            marker_line_width=1.5,
-            marker_line_color="#12372A",
-            showscale=False
-        )
-    )
-
-    fig_mapa.update_layout(
-        map=dict(
-            style="open-street-map",
-            zoom=8,
-            center={"lat": centro_lat, "lon": centro_lon}
-        ),
-        margin={"r":0, "t": 0, "l": 0, "b": 0},
-        height=500
-    )
-
-    st.plotly_chart(fig_mapa, use_container_width=True)
 
 # ============================================================
 # RODAPÉ
