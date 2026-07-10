@@ -18,7 +18,7 @@ import plotly.graph_objects as go
 # ============================================================
 
 st.set_page_config(
-    page_title="Dashboard ATVOS - Amostragens",
+    page_title="Monitoramento de Entregas - ATVOS",
     layout="wide",
     initial_sidebar_state="expanded",
 )
