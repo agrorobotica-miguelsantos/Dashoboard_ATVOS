@@ -256,7 +256,7 @@ with st.sidebar:
     df_filtrado = df_bruto.copy()
 
     if busca_fazenda:
-        termos = [re.escape(t.strip().lower()) for t in re.split(r'[,;\s]+', busca_fazenda) if t.strip()] # em que t corresponde à string
+        termos = [re.escape(t.strip().lower()) for t in re.split(r'[,;\s]+', busca_fazenda) if t.strip()]
         if termos:
             padrao_regex = "|".join(termos)
             mask_cod = df_filtrado["Fazenda"].astype(str).str.lower().str.contains(padrao_regex, na=False, regex=True)
@@ -294,7 +294,7 @@ st.markdown(
     <div class="hero">
         <div class="hero-title">Monitoramento de Entregas — ATVOS</div>
         <div class="hero-subtitle">
-            Acompanhamento do quantitativo de amostras e status de conclusão por remesa, tipo e unidade | 
+            Acompanhamento do quantitativo de amostras e status de conclusão por remessa, tipo e unidade | 
             Atualizado em {hora_brasilia.strftime("%d/%m/%Y %H:%M")}
         </div>
     </div>
@@ -376,7 +376,7 @@ with tab_geral:
 
     st.divider()
 
-    # --- TABELA DE DETALHAMENTO ---
+    # --- TABELA DE DETALHAMENTO MACRO ---
     st.markdown("### Demonstrativo - Fazendas por Unidade")
     ocultar_concluidas = st.toggle("Esconder fazendas 100% concluídas", value=False)
     
@@ -414,12 +414,62 @@ with tab_geral:
                         hide_index=True, use_container_width=True
                     )
 
+    # ============================================================
+    # INTERFACE SOB DEMANDA: DRILL-DOWN POR TALHÃO (MICRO-DADO)
+    # ============================================================
+    st.divider()
+    st.markdown("### Detalhamento por Talhão (Sob Demanda)")
+    st.caption("Selecione uma fazenda abaixo para investigar o status e os dados de área ao nível de talhão.")
+
+    # Busca apenas as fazendas presentes no filtro atual do usuário
+    fazendas_disponiveis = sorted(df_filtrado[col_nome_fazenda].dropna().unique())
+
+    if fazendas_disponiveis:
+        # Selectbox discreto que não ocupa espaço físico fixo na tela
+        fazenda_selecionada = st.selectbox(
+            "Selecione uma fazenda para detalhar seus talhões:",
+            options=fazendas_disponiveis,
+            index=None,
+            placeholder="Selecione uma fazenda...",
+            key="sb_talhao_drilldown"
+        )
+
+        if fazenda_selecionada:
+            df_talhao_fzd = df_filtrado[df_filtrado[col_nome_fazenda] == fazenda_selecionada]
+            
+            # Mapeamento e detecção segura de colunas na planilha de talhões
+            cols_agrup_talhao = []
+            cols_config = {}
+            
+            # Verificação defensiva de colunas para evitar falhas de execução
+            if "Talhao" in df_talhao_fzd.columns:
+                cols_agrup_talhao.append("Talhao")
+                cols_config["Talhao"] = st.column_config.TextColumn("Talhão")
+            if "Tipo" in df_talhao_fzd.columns:
+                cols_agrup_talhao.append("Tipo")
+                cols_config["Tipo"] = st.column_config.TextColumn("Tipo de Amostragem")
+            if "Status" in df_talhao_fzd.columns:
+                cols_agrup_talhao.append("Status")
+                cols_config["Status"] = st.column_config.TextColumn("Status")
+            
+            # Caso as colunas de talhão existam, gera a visualização micro correspondente
+            if "Talhao" in df_talhao_fzd.columns:
+                df_detalhe_talhao = df_talhao_fzd[cols_agrup_talhao].drop_duplicates().sort_values(by="Talhao")
+                
+                st.dataframe(
+                    df_detalhe_talhao,
+                    column_config=cols_config,
+                    hide_index=True,
+                    use_container_width=True
+                )
+            else:
+                st.warning("⚠️ A coluna de detalhe 'Talhao' não foi encontrada no arquivo carregado.")
+    else:
+        st.info("Nenhuma fazenda disponível para consulta no filtro atual.")
+
 with tab_prazos:
-    
-    
     df_entregue = df_filtrado[df_filtrado['Status'] == 'Concluído']
     df_pendente = df_filtrado[df_filtrado['Status'] == 'Pendente']
-
 
 # ============================================================
 # RODAPÉ
@@ -432,5 +482,5 @@ st.markdown(
         © 2026 Agrorobótica - Monitoramento de Entregas ATVOS
     </div>
     """,
-    unsafe_allow_html=  True
+    unsafe_allow_html=True
 )
