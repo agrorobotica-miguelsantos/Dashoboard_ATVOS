@@ -601,68 +601,6 @@ with tab_prazos:
                 </div>
             """, unsafe_allow_html=True)
 
-        # ============================================================
-        # CONSTRUÇÃO DA CURVA S (PLANEJAMENTO DE HECTARES)
-        # ============================================================
-        st.divider()
-        st.markdown("### 📈 Curva S — Planejamento de Avanço da Safra")
-        st.caption("Evolução acumulada em Hectares (Ha) comparando o ritmo de amostragem no campo com a liberação dos laudos.")
-
-        df_curva = df_prio.dropna(subset=["Previsao_amostragem", "Previsao_entrega_laudos"]).copy()
-        df_curva["Previsao_amostragem"] = pd.to_datetime(df_curva["Previsao_amostragem"])
-        df_curva["Previsao_entrega_laudos"] = pd.to_datetime(df_curva["Previsao_entrega_laudos"])
-        
-        # Filtro temporal para evitar distorção visual com dados futuros distantes
-        df_curva = df_curva[df_curva["Previsao_entrega_laudos"].dt.year == 2026]
-
-        if not df_curva.empty:
-            df_campo_dia = df_curva.groupby("Previsao_amostragem")["Area_Ha"].sum().reset_index(name="Area_Campo")
-            df_lab_dia = df_curva.groupby("Previsao_entrega_laudos")["Area_Ha"].sum().reset_index(name="Area_Lab")
-
-            data_inicio = df_curva["Previsao_amostragem"].min()
-            data_fim = df_curva["Previsao_entrega_laudos"].max()
-            eixo_tempo = pd.date_range(start=data_inicio, end=data_fim).to_frame(index=False, name="Data")
-
-            df_s = eixo_tempo.merge(df_campo_dia, left_on="Data", right_on="Previsao_amostragem", how="left")
-            df_s = df_s.merge(df_lab_dia, left_on="Data", right_on="Previsao_entrega_laudos", how="left")
-            df_s.drop(columns=["Previsao_amostragem", "Previsao_entrega_laudos"], inplace=True, errors="ignore")
-            df_s.fillna(0, inplace=True)
-
-            df_s["Amostragem Planejada (Acumulado)"] = df_s["Area_Campo"].cumsum()
-            df_s["Entrega de Laudos Planejada (Acumulado)"] = df_s["Area_Lab"].cumsum()
-
-            df_plot_s = df_s.melt(
-                id_vars=["Data"],
-                value_vars=["Amostragem Planejada (Acumulado)", "Entrega de Laudos Planejada (Acumulado)"],
-                var_name="Cronograma",
-                value_name="Hectares Acumulados"
-            )
-
-            fig_s = px.line(
-                df_plot_s,
-                x="Data",
-                y="Hectares Acumulados",
-                color="Cronograma",
-                color_discrete_map={
-                    "Amostragem Planejada (Acumulado)": CORES["verde_claro"],
-                    "Entrega de Laudos Planejada (Acumulado)": CORES["verde_escuro"]
-                },
-                title="<b>Evolução Cronológica da Área Atendida (Ha)</b>"
-            )
-
-            fig_s.update_traces(line=dict(width=4))
-            fig_s.update_layout(
-                xaxis_title="Linha do Tempo (Dias/Semanas)",
-                yaxis_title="Área Acumulada (Ha)",
-                hovermode="x unified",
-                legend=dict(orientation="h", y=1.12, x=0, title_text="")
-            )
-            fig_s.update_xaxes(tickformat="%d/%m")
-
-            st.plotly_chart(aplicar_layout_grafico(fig_s, 400), use_container_width=True)
-        else:
-            st.info("💡 Sem dados de previsão cronológica para o ano corrente de 2026 para gerar a Curva S.")
-
 # ============================================================
 # RODAPÉ CENTRALIZADO
 # ============================================================
