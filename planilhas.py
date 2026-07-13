@@ -418,7 +418,7 @@ with tab_geral:
     # DRILL-DOWN Fazenda-Talhão
     # ============================================================
     st.divider()
-    st.markdown("### Detalhamento por Talhão (Sob Demanda)")
+    st.markdown("### Detalhamento por Talhão")
     st.caption("Insira o código de uma fazenda para investigar o status e os dados de área ao nível de talhão.")
 
     codigo_padrao = ""
