@@ -419,23 +419,34 @@ with tab_geral:
     # ============================================================
     st.divider()
     st.markdown("### Detalhamento por Talhão (Sob Demanda)")
-    st.caption("Selecione uma fazenda abaixo para investigar o status e os dados de área ao nível de talhão.")
+    st.caption("Insira o código de uma fazenda para investigar o status e os dados de área ao nível de talhão.")
 
-    # Busca apenas as fazendas presentes no filtro atual do usuário
-    fazendas_disponiveis = sorted(df_filtrado[col_nome_fazenda].dropna().unique())
+    codigo_padrao = ""
+    if busca_fazenda:
+        # Pega o primeiro termo digitado na busca da sidebar
+        termos_busca = [t.strip() for t in re.split(r'[,;\s]+', busca_fazenda) if t.strip()]
+        if termos_busca:
+            codigo_padrao = termos_busca[0]
 
-    if fazendas_disponiveis:
-        # Selectbox discreto que não ocupa espaço físico fixo na tela
-        fazenda_selecionada = st.selectbox(
-            "Selecione uma fazenda para detalhar seus talhões:",
-            options=fazendas_disponiveis,
-            index=None,
-            placeholder="Selecione uma fazenda...",
-            key="sb_talhao_drilldown"
-        )
+    # 2. Campo de texto rápido por código (muito mais rápido do que selectbox)
+    fzd_codigo_input = st.text_input(
+        "Digite o Código da Fazenda:",
+        value=codigo_padrao,
+        placeholder="Ex: 440335",
+        help="Digite o código numérico da fazenda para listar seus talhões",
+        key="txt_talhao_drilldown"
+    )
 
-        if fazenda_selecionada:
-            df_talhao_fzd = df_filtrado[df_filtrado[col_nome_fazenda] == fazenda_selecionada]
+    if fzd_codigo_input:
+        # Filtra os dados da fazenda digitada
+        df_talhao_fzd = df_filtrado[df_filtrado[col_cod_fazenda].astype(str) == fzd_codigo_input.strip()]
+        
+        if not df_talhao_fzd.empty:
+            nome_fzd_encontrado = df_talhao_fzd[col_nome_fazenda].iloc[0]
+            unidade_fzd = df_talhao_fzd["Unidade"].iloc[0]
+            
+            # Mostra um cabeçalho identificando claramente a fazenda localizada
+            st.markdown(f"**Fazenda Localizada:** `{fzd_codigo_input}` - **{nome_fzd_encontrado}** (Unidade: *{unidade_fzd}*)")
             
             # Mapeamento e detecção segura de colunas na planilha de talhões
             cols_agrup_talhao = []
@@ -463,9 +474,11 @@ with tab_geral:
                     use_container_width=True
                 )
             else:
-                st.warning("⚠️ A coluna de detalhe 'Talhão' não foi encontrada no arquivo carregado.")
+                st.warning("⚠️ A coluna de detalhe 'Talhao' não foi encontrada no arquivo carregado.")
+        else:
+            st.error(f"❌ Nenhuma fazenda encontrada com o código `{fzd_codigo_input}` nos filtros atuais.")
     else:
-        st.info("Nenhuma fazenda disponível para consulta no filtro atual.")
+        st.info("💡 Digite o código de uma fazenda acima (ou utilize o filtro da barra lateral) para carregar os talhões.")
 
 with tab_prazos:
     df_entregue = df_filtrado[df_filtrado['Status'] == 'Concluído']
