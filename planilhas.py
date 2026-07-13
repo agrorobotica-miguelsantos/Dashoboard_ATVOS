@@ -480,7 +480,7 @@ with tab_geral:
         st.info("💡 Digite o código de uma fazenda acima (or utilize o filtro da barra lateral) para carregar os talhões.")
 
 # ------------------------------------------------------------
-# ABA 2: PRAZOS, IMPEDIMENTOS & CURVA S
+# ABA 2: PRAZOS, IMPEDIMENTOS & CURVA S (CÓDIGO CORRIGIDO)
 # ------------------------------------------------------------
 with tab_prazos:
     st.markdown("### ⏳ Cronograma de Entregas & Análise de Gargalos")
@@ -488,7 +488,7 @@ with tab_prazos:
 
     @st.cache_data(ttl=3600)
     def carregar_prioridades_campo():
-        caminho_prio = Path("prioridade_amostragem.xlsx")
+        caminho_prio = Path("Prioridades amostragem.xlsx")
         if not caminho_prio.exists():
             return pd.DataFrame()
         try:
@@ -498,108 +498,191 @@ with tab_prazos:
         except:
             return pd.DataFrame()
 
-    df_prio = carregar_prioridades_campo()
+    df_prio_bruto = carregar_prioridades_campo()
 
-    if df_prio.empty:
+    if df_prio_bruto.empty:
         st.info("Aguardando estruturação do arquivo 'Prioridades amostragem.xlsx' para exibição do cronograma de campo.")
     else:
-        area_total_prio = df_prio["Area_Ha"].sum()
-        df_parados = df_prio[df_prio["Report_fertilidade"].str.contains("Parado", na=False, case=False)]
-        area_parada = df_parados["Area_Ha"].sum()
-        pct_parado = area_parada / area_total_prio if area_total_prio > 0 else 0
+        # --- ALINHAMENTO DINÂMICO DOS FILTROS DA SIDEBAR ---
+        df_prio = df_prio_bruto.copy()
 
-        df_prio["Previsao_entrega_laudos"] = pd.to_datetime(df_prio["Previsao_entrega_laudos"], errors="coerce")
-        proxima_data = df_prio[df_prio["Previsao_entrega_laudos"] >= hoje]["Previsao_entrega_laudos"].min()
-        proxima_data_str = proxima_data.strftime("%d/%m/%Y") if pd.notna(proxima_data) else "Sem previsões"
+        # 1. Aplica o filtro de Busca por Fazenda usando 'Cod_Fzda'
+        if busca_fazenda and 'termos' in locals() and termos:
+            mask_prio_fzd = df_prio["Cod_Fzda"].astype(str).str.lower().str.contains(padrao_regex, na=False, regex=True)
+            df_prio = df_prio[mask_prio_fzd]
 
-        cp1, cp2, cp3 = st.columns(3)
-        with cp1:
-            card_kpi("Área Mapeada no Plano", f"{format_num(area_total_prio)} Ha", "Total planejado para fertilidade")
-        with cp2:
-            card_kpi("Área Paralisada (Impedimentos)", f"{format_num(area_parada)} Ha", f"{pct_parado:.1%} do cronograma afetado")
-        with cp3:
-            card_kpi("Próximo Alvo de Entrega", proxima_data_str, "Prazo estimado do próximo lote de laudos")
+        # 2. Aplica o filtro de Unidades usando a coluna 'Emp'
+        if unidade_select:
+            df_prio = df_prio[df_prio["Emp"].isin(unidade_select)]
 
-        st.markdown("<br>", unsafe_allow_html=True)
+        # 3. Aplica o filtro de Tipo (Como a aba atual é estritamente Fertilidade)
+        if tipo_select and "Fertilidade" not in tipo_select:
+            df_prio = pd.DataFrame(columns=df_prio.columns) # Esvazia se Fertilidade for desmarcada
 
-        col_prio1, col_prio2 = st.columns([4, 5])
+        # Nota: O filtro de Remessa é ignorado com segurança aqui, já que esta base não possui essa divisão.
 
-        with col_prio1:
-            st.markdown("#### Distribuição de Área por Status")
-            df_graf_prio = df_prio.groupby("Report_fertilidade")["Area_Ha"].sum().reset_index()
-            
-            fig_prio_status = px.bar(
-                df_graf_prio,
-                x="Area_Ha", y="Report_fertilidade",
-                orientation="h", text_auto=".1f",
-                color="Report_fertilidade",
-                color_discrete_map={
-                    "Andamento": CORES["verde"],
-                    "Aguardando Inicio": CORES["azul"],
-                    "Parado - Mato Alto": CORES["vermelho"],
-                    "Parado - Milheto": "#E11D48",
-                    "Parado - Mandioca": "#BE123C",
-                    "Cancelado": CORES["cinza"]
-                },
-                title="<b>Hectares por Situação do Relatório</b>"
-            )
-            fig_prio_status.update_layout(xaxis_title="Hectares (Ha)", yaxis_title="", showlegend=False)
-            st.plotly_chart(aplicar_layout_grafico(fig_prio_status, 350), use_container_width=True)
-
-        with col_prio2:
-            st.markdown("#### 🎯 Clique em uma linha para Auditar os Talhões")
-            
-            resumo_prio = df_prio.groupby("Report_fertilidade").agg(
-                Talhoes=("Talhao", "count"),
-                Area_Total=("Area_Ha", "sum")
-            ).reset_index().sort_values(by="Area_Total", ascending=False)
-
-            tabela_interativa = st.dataframe(
-                resumo_prio,
-                column_config={
-                    "Report_fertilidade": st.column_config.TextColumn("Status / Impedimento"),
-                    "Talhoes": st.column_config.NumberColumn("Qtd Talhões"),
-                    "Area_Total": st.column_config.NumberColumn("Área Total", format="%.2f Ha")
-                },
-                hide_index=True,
-                use_container_width=True,
-                on_select="rerun",
-                selection_mode="single-row"
-            )
-
-        # --- SEÇÃO DRILL-DOWN INTERATIVA DA TABELA DE PRIORIDADES ---
-        linhas_selecionadas = tabela_interativa.get("selection", {}).get("rows", [])
-        
-        if linhas_selecionadas:
-            idx_linha = list(linhas_selecionadas)[0]
-            status_escolhido = resumo_prio.iloc[idx_linha]["Report_fertilidade"]
-            
-            st.markdown(f"### 🔍 Detalhamento Micro: `{status_escolhido}`")
-            df_detalhe_prio = df_prio[df_prio["Report_fertilidade"] == status_escolhido].copy()
-            
-            for col_data in ["Previsao_amostragem", "Previsao_chegada", "Previsao_entrega_laudos"]:
-                if col_data in df_detalhe_prio.columns:
-                    df_detalhe_prio[col_data] = pd.to_datetime(df_detalhe_prio[col_data]).dt.strftime("%d/%m/%Y").fillna("-")
-
-            st.dataframe(
-                df_detalhe_prio[["Emp", "Fazenda", "Setor", "Talhao", "Area_Ha", "Priopridade_amostragem", "Previsao_entrega_laudos"]].sort_values(by="Area_Ha", ascending=False),
-                column_config={
-                    "Emp": st.column_config.TextColumn("Polo"),
-                    "Fazenda": st.column_config.TextColumn("Fazenda"),
-                    "Talhao": st.column_config.TextColumn("Talhão"),
-                    "Area_Ha": st.column_config.NumberColumn("Área", format="%.2f Ha"),
-                    "Priopridade_amostragem": st.column_config.TextColumn("Prioridade"),
-                    "Previsao_entrega_laudos": st.column_config.TextColumn("Previsão Entrega")
-                },
-                hide_index=True,
-                use_container_width=True
-            )
+        if df_prio.empty:
+            st.info("Nenhum registro de cronograma corresponde aos filtros selecionados na barra lateral.")
         else:
-            st.markdown("""
-                <div style='text-align: center; padding: 20px; border: 1px dashed #E5E7EB; border-radius: 12px; color: #6B7280;'>
-                    💡 Clique em qualquer linha da tabela de status acima para abrir a auditoria detalhada de talhões sem poluir a tela.
-                </div>
-            """, unsafe_allow_html=True)
+            # --- ENGENHARIA DE MÉTRICAS OPERACIONAIS ---
+            area_total_prio = df_prio["Area_Ha"].sum()
+            df_parados = df_prio[df_prio["Report_fertilidade"].str.contains("Parado", na=False, case=False)]
+            area_parada = df_parados["Area_Ha"].sum()
+            pct_parado = area_parada / area_total_prio if area_total_prio > 0 else 0
+
+            df_prio["Previsao_entrega_laudos"] = pd.to_datetime(df_prio["Previsao_entrega_laudos"], errors="coerce")
+            proxima_data = df_prio[df_prio["Previsao_entrega_laudos"] >= hoje]["Previsao_entrega_laudos"].min()
+            proxima_data_str = proxima_data.strftime("%d/%m/%Y") if pd.notna(proxima_data) else "Sem previsões"
+
+            cp1, cp2, cp3 = st.columns(3)
+            with cp1:
+                card_kpi("Área Mapeada no Plano", f"{format_num(area_total_prio)} Ha", "Total filtrado para fertilidade")
+            with cp2:
+                card_kpi("Área Paralisada (Impedimentos)", f"{format_num(area_parada)} Ha", f"{pct_parado:.1%} do cronograma afetado")
+            with cp3:
+                card_kpi("Próximo Alvo de Entrega", proxima_data_str, "Prazo estimado do próximo lote de laudos")
+
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            col_prio1, col_prio2 = st.columns([4, 5])
+
+            with col_prio1:
+                st.markdown("#### Distribuição de Área por Status")
+                df_graf_prio = df_prio.groupby("Report_fertilidade")["Area_Ha"].sum().reset_index()
+                
+                fig_prio_status = px.bar(
+                    df_graf_prio,
+                    x="Area_Ha", y="Report_fertilidade",
+                    orientation="h", text_auto=".1f",
+                    color="Report_fertilidade",
+                    color_discrete_map={
+                        "Andamento": CORES["verde"],
+                        "Aguardando Inicio": CORES["azul"],
+                        "Parado - Mato Alto": CORES["vermelho"],
+                        "Parado - Milheto": "#E11D48",
+                        "Parado - Mandioca": "#BE123C",
+                        "Cancelado": CORES["cinza"]
+                    },
+                    title="<b>Hectares por Situação do Relatório</b>"
+                )
+                fig_prio_status.update_layout(xaxis_title="Hectares (Ha)", yaxis_title="", showlegend=False)
+                st.plotly_chart(aplicar_layout_grafico(fig_prio_status, 350), use_container_width=True)
+
+            with col_prio2:
+                st.markdown("#### 🎯 Clique em uma linha para Auditar os Talhões")
+                
+                resumo_prio = df_prio.groupby("Report_fertilidade").agg(
+                    Talhoes=("Talhao", "count"),
+                    Area_Total=("Area_Ha", "sum")
+                ).reset_index().sort_values(by="Area_Total", ascending=False)
+
+                tabela_interativa = st.dataframe(
+                    resumo_prio,
+                    column_config={
+                        "Report_fertilidade": st.column_config.TextColumn("Status / Impedimento"),
+                        "Talhoes": st.column_config.NumberColumn("Qtd Talhões"),
+                        "Area_Total": st.column_config.NumberColumn("Área Total", format="%.2f Ha")
+                    },
+                    hide_index=True,
+                    use_container_width=True,
+                    on_select="rerun",
+                    selection_mode="single-row"
+                )
+
+            # --- SEÇÃO DRILL-DOWN INTERATIVA DA TABELA DE PRIORIDADES ---
+            linhas_selecionadas = tabela_interativa.get("selection", {}).get("rows", [])
+            
+            if linhas_selecionadas:
+                idx_linha = list(linhas_selecionadas)[0]
+                status_escolhido = resumo_prio.iloc[idx_linha]["Report_fertilidade"]
+                
+                st.markdown(f"### 🔍 Detalhamento Micro: `{status_escolhido}`")
+                df_detalhe_prio = df_prio[df_prio["Report_fertilidade"] == status_escolhido].copy()
+                
+                for col_data in ["Previsao_amostragem", "Previsao_chegada", "Previsao_entrega_laudos"]:
+                    if col_data in df_detalhe_prio.columns:
+                        df_detalhe_prio[col_data] = pd.to_datetime(df_detalhe_prio[col_data]).dt.strftime("%d/%m/%Y").fillna("-")
+
+                st.dataframe(
+                    df_detalhe_prio[["Emp", "Fazenda", "Setor", "Talhao", "Area_Ha", "Priopridade_amostragem", "Previsao_entrega_laudos"]].sort_values(by="Area_Ha", ascending=False),
+                    column_config={
+                        "Emp": st.column_config.TextColumn("Polo"),
+                        "Fazenda": st.column_config.TextColumn("Fazenda"),
+                        "Talhao": st.column_config.TextColumn("Talhão"),
+                        "Area_Ha": st.column_config.NumberColumn("Área", format="%.2f Ha"),
+                        "Priopridade_amostragem": st.column_config.TextColumn("Prioridade"),
+                        "Previsao_entrega_laudos": st.column_config.TextColumn("Previsão Entrega")
+                    },
+                    hide_index=True,
+                    use_container_width=True
+                )
+            else:
+                st.markdown("""
+                    <div style='text-align: center; padding: 20px; border: 1px dashed #E5E7EB; border-radius: 12px; color: #6B7280;'>
+                        💡 Clique em qualquer linha da tabela de status acima para abrir a auditoria detalhada de talhões sem poluir a tela.
+                    </div>
+                """, unsafe_allow_html=True)
+
+            # ============================================================
+            # CONSTRUÇÃO DA CURVA S (PLANEJAMENTO DE HECTARES)
+            # ============================================================
+            st.divider()
+            st.markdown("### 📈 Curva S — Planejamento de Avanço da Safra")
+            st.caption("Evolução acumulada em Hectares (Ha) comparando o ritmo de amostragem no campo com a liberação dos laudos.")
+
+            df_curva = df_prio.dropna(subset=["Previsao_amostragem", "Previsao_entrega_laudos"]).copy()
+            df_curva["Previsao_amostragem"] = pd.to_datetime(df_curva["Previsao_amostragem"])
+            df_curva["Previsao_entrega_laudos"] = pd.to_datetime(df_curva["Previsao_entrega_laudos"])
+            
+            df_curva = df_curva[df_curva["Previsao_entrega_laudos"].dt.year == 2026]
+
+            if not df_curva.empty:
+                df_campo_dia = df_curva.groupby("Previsao_amostragem")["Area_Ha"].sum().reset_index(name="Area_Campo")
+                df_lab_dia = df_curva.groupby("Previsao_entrega_laudos")["Area_Ha"].sum().reset_index(name="Area_Lab")
+
+                data_inicio = df_curva["Previsao_amostragem"].min()
+                data_fim = df_curva["Previsao_entrega_laudos"].max()
+                eixo_tempo = pd.date_range(start=data_inicio, end=data_fim).to_frame(index=False, name="Data")
+
+                df_s = eixo_tempo.merge(df_campo_dia, left_on="Data", right_on="Previsao_amostragem", how="left")
+                df_s = df_s.merge(df_lab_dia, left_on="Data", right_on="Previsao_entrega_laudos", how="left")
+                df_s.drop(columns=["Previsao_amostragem", "Previsao_entrega_laudos"], inplace=True, errors="ignore")
+                df_s.fillna(0, inplace=True)
+
+                df_s["Amostragem Planejada (Acumulado)"] = df_s["Area_Campo"].cumsum()
+                df_s["Entrega de Laudos Planejada (Acumulado)"] = df_s["Area_Lab"].cumsum()
+
+                df_plot_s = df_s.melt(
+                    id_vars=["Data"],
+                    value_vars=["Amostragem Planejada (Acumulado)", "Entrega de Laudos Planejada (Acumulado)"],
+                    var_name="Cronograma",
+                    value_name="Hectares Acumulados"
+                )
+
+                fig_s = px.line(
+                    df_plot_s,
+                    x="Data",
+                    y="Hectares Acumulados",
+                    color="Cronograma",
+                    color_discrete_map={
+                        "Amostragem Planejada (Acumulado)": CORES["verde_claro"],
+                        "Entrega de Laudos Planejada (Acumulado)": CORES["verde_escuro"]
+                    },
+                    title="<b>Evolução Cronológica da Área Atendida (Ha)</b>"
+                )
+
+                fig_s.update_traces(line=dict(width=4))
+                fig_s.update_layout(
+                    xaxis_title="Linha do Tempo (Dias/Semanas)",
+                    yaxis_title="Área Acumulada (Ha)",
+                    hovermode="x unified",
+                    legend=dict(orientation="h", y=1.12, x=0, title_text="")
+                )
+                fig_s.update_xaxes(tickformat="%d/%m")
+
+                st.plotly_chart(aplicar_layout_grafico(fig_s, 400), use_container_width=True)
+            else:
+                st.info("💡 Sem dados de previsão cronológica para o ano corrente de 2026 para gerar a Curva S.")
 
 # ============================================================
 # RODAPÉ CENTRALIZADO
