@@ -488,7 +488,7 @@ with tab_prazos:
 
     @st.cache_data(ttl=3600)
     def carregar_prioridades_campo():
-        caminho_prio = Path("Prioridades amostragem.xlsx")
+        caminho_prio = Path("prioridade_amostragem.xlsx")
         if not caminho_prio.exists():
             return pd.DataFrame()
         try:
