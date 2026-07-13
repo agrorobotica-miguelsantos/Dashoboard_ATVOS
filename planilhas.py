@@ -443,7 +443,7 @@ with tab_geral:
             
             # Verificação defensiva de colunas para evitar falhas de execução
             if "Talhao" in df_talhao_fzd.columns:
-                cols_agrup_talhao.append("Talhao")
+                cols_agrup_talhao.append("Talhão")
                 cols_config["Talhão"] = st.column_config.TextColumn("Talhão")
             if "Tipo" in df_talhao_fzd.columns:
                 cols_agrup_talhao.append("Tipo")
