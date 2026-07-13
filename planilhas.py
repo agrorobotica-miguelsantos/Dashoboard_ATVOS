@@ -454,7 +454,7 @@ with tab_geral:
             
             # Caso as colunas de talhão existam, gera a visualização micro correspondente
             if "Talhão" in df_talhao_fzd.columns:
-                df_detalhe_talhao = df_talhao_fzd[cols_agrup_talhao].drop_duplicates().sort_values(by="Talhao")
+                df_detalhe_talhao = df_talhao_fzd[cols_agrup_talhao].drop_duplicates().sort_values(by="Talhão")
                 
                 st.dataframe(
                     df_detalhe_talhao,
