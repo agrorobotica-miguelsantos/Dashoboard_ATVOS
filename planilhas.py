@@ -442,7 +442,7 @@ with tab_geral:
             cols_config = {}
             
             # Verificação defensiva de colunas para evitar falhas de execução
-            if "Talhao" in df_talhao_fzd.columns:
+            if "Talhão" in df_talhao_fzd.columns:
                 cols_agrup_talhao.append("Talhão")
                 cols_config["Talhão"] = st.column_config.TextColumn("Talhão")
             if "Tipo" in df_talhao_fzd.columns:
@@ -453,7 +453,7 @@ with tab_geral:
                 cols_config["Status"] = st.column_config.TextColumn("Status")
             
             # Caso as colunas de talhão existam, gera a visualização micro correspondente
-            if "Talhao" in df_talhao_fzd.columns:
+            if "Talhão" in df_talhao_fzd.columns:
                 df_detalhe_talhao = df_talhao_fzd[cols_agrup_talhao].drop_duplicates().sort_values(by="Talhao")
                 
                 st.dataframe(
@@ -463,7 +463,7 @@ with tab_geral:
                     use_container_width=True
                 )
             else:
-                st.warning("⚠️ A coluna de detalhe 'Talhao' não foi encontrada no arquivo carregado.")
+                st.warning("⚠️ A coluna de detalhe 'Talhão' não foi encontrada no arquivo carregado.")
     else:
         st.info("Nenhuma fazenda disponível para consulta no filtro atual.")
 
