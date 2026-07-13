@@ -428,7 +428,7 @@ with tab_geral:
         if termos_busca:
             codigo_padrao = termos_busca[0]
 
-    # 2. Campo de texto rápido por código (muito mais rápido do que selectbox)
+    # 2. Campo de texto
     fzd_codigo_input = st.text_input(
         "Digite o Código da Fazenda:",
         value=codigo_padrao,
@@ -448,11 +448,11 @@ with tab_geral:
             # Mostra um cabeçalho identificando claramente a fazenda localizada
             st.markdown(f"**Fazenda Localizada:** `{fzd_codigo_input}` - **{nome_fzd_encontrado}** (Unidade: **{unidade_fzd}**)")
             
-            # Mapeamento e detecção segura de colunas na planilha de talhões
+            # Mapeamento e detecção de colunas na planilha de talhões
             cols_agrup_talhao = []
             cols_config = {}
             
-            # Verificação defensiva de colunas para evitar falhas de execução
+            # Verificação de colunas para evitar falhas de execução
             if "Talhão" in df_talhao_fzd.columns:
                 cols_agrup_talhao.append("Talhão")
                 cols_config["Talhão"] = st.column_config.TextColumn("Talhão")
@@ -474,11 +474,11 @@ with tab_geral:
                     use_container_width=True
                 )
             else:
-                st.warning("⚠️ A coluna de detalhe 'Talhao' não foi encontrada no arquivo carregado.")
+                st.warning("A coluna de detalhe 'Talhão' não foi encontrada no arquivo carregado.")
         else:
-            st.error(f"❌ Nenhuma fazenda encontrada com o código `{fzd_codigo_input}` nos filtros atuais.")
+            st.error(f"Nenhuma fazenda encontrada com o código `{fzd_codigo_input}` nos filtros atuais.")
     else:
-        st.info("💡 Digite o código de uma fazenda acima (ou utilize o filtro da barra lateral) para carregar os talhões.")
+        st.info("Digite o código de uma fazenda acima (ou utilize o filtro da barra lateral) para carregar os talhões.")
 
 with tab_prazos:
     df_entregue = df_filtrado[df_filtrado['Status'] == 'Concluído']
