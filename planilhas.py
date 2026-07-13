@@ -458,7 +458,7 @@ with tab_geral:
                 cols_config["Talhão"] = st.column_config.TextColumn("Talhão")
             if "Tipo" in df_talhao_fzd.columns:
                 cols_agrup_talhao.append("Tipo")
-                cols_config["Tipo"] = st.column_config.TextColumn("Tipo de Amostragem")
+                cols_config["Tipo"] = st.column_config.TextColumn("Tipo")
             if "Status" in df_talhao_fzd.columns:
                 cols_agrup_talhao.append("Status")
                 cols_config["Status"] = st.column_config.TextColumn("Status")
