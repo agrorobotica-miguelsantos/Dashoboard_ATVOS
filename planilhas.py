@@ -34,11 +34,8 @@ CORES = {
     "borda": "#E5E7EB",
     "alerta": "#F59E0B",
     "azul": "#2563EB",
-    "vermelho": "#B91C1C",  # Vermelho corporativo mais amigável e sóbrio
+    "vermelho": "#B91C1C",
 }
-
-# Data global de referência atual para os cálculos do sistema
-hoje = pd.Timestamp(dt.date.today())
 
 # ============================================================
 # ESTILIZAÇÃO CSS CUSTOMIZADA
@@ -234,7 +231,7 @@ df_bruto["Status"] = df_bruto[col_ref].apply(
 
 
 # ============================================================
-# SIDEBAR (FILTROS COM MULTI-BUSCA POR REGEX)
+# SIDEBAR (FILTROS)
 # ============================================================
 
 with st.sidebar:
@@ -252,8 +249,8 @@ with st.sidebar:
 
     busca_fazenda = st.text_input(
         "Busca por Fazenda", 
-        placeholder="Ex: 440335, 120528",
-        help="Pesquise códigos separados por espaço, vírgula ou ponto e vírgula"
+        placeholder="Ex: 420136",
+        help="Pesquise utilizando o código da fazenda"
     )
 
     df_filtrado = df_bruto.copy()
@@ -283,8 +280,8 @@ with st.sidebar:
     unidade_select = st.multiselect(
         "Unidades", options=unidades_disponiveis, default=unidades_disponiveis
     )
-    if unity_select := unidade_select:
-        df_filtrado = df_filtrado[df_filtrado["Unidade"].isin(unity_select)]
+    if unidade_select:
+        df_filtrado = df_filtrado[df_filtrado["Unidade"].isin(unidade_select)]
 
 
 # ============================================================
@@ -315,9 +312,6 @@ if df_filtrado.empty:
 
 tab_geral, tab_prazos = st.tabs(["Quantitativo e Status", "Prazos"])
 
-# ------------------------------------------------------------
-# ABA 1: QUANTITATIVO E STATUS (VOLUMETRIA MACRO)
-# ------------------------------------------------------------
 with tab_geral:
     total_amostras = len(df_filtrado)
     concluidas = (df_filtrado["Status"] == "Concluído").sum()
@@ -420,52 +414,59 @@ with tab_geral:
                         hide_index=True, use_container_width=True
                     )
 
-    # --- INTERFACE SOB DEMANDA: DRILL-DOWN POR TALHÃO VIA CÓDIGO ---
+    # ============================================================
+    # DRILL-DOWN Fazenda-Talhão
+    # ============================================================
     st.divider()
-    st.markdown("### 🔍 Detalhamento por Talhão (Sob Demanda)")
+    st.markdown("### Detalhamento por Talhão")
     st.caption("Insira o código de uma fazenda para investigar o status e os dados de área ao nível de talhão.")
 
     codigo_padrao = ""
     if busca_fazenda:
+        # Pega o primeiro termo digitado na busca da sidebar
         termos_busca = [t.strip() for t in re.split(r'[,;\s]+', busca_fazenda) if t.strip()]
         if termos_busca:
             codigo_padrao = termos_busca[0]
 
+    # 2. Campo de texto
     fzd_codigo_input = st.text_input(
         "Digite o Código da Fazenda:",
         value=codigo_padrao,
-        placeholder="Ex: 440335",
+        placeholder="Ex: 420136",
         help="Digite o código numérico da fazenda para listar seus talhões",
         key="txt_talhao_drilldown"
     )
 
     if fzd_codigo_input:
+        # Filtra os dados da fazenda digitada
         df_talhao_fzd = df_filtrado[df_filtrado[col_cod_fazenda].astype(str) == fzd_codigo_input.strip()]
         
         if not df_talhao_fzd.empty:
             nome_fzd_encontrado = df_talhao_fzd[col_nome_fazenda].iloc[0]
             unidade_fzd = df_talhao_fzd["Unidade"].iloc[0]
             
-            st.markdown(f"**Fazenda Localizada:** `{fzd_codigo_input}` - **{nome_fzd_encontrado}** (Unidade: *{unidade_fzd}*)")
+            # Mostra um cabeçalho identificando claramente a fazenda localizada
+            st.markdown(f"**Fazenda Localizada:** `{fzd_codigo_input}` - **{nome_fzd_encontrado}** (Unidade: **{unidade_fzd}**)")
             
+            # Mapeamento e detecção de colunas na planilha de talhões
             cols_agrup_talhao = []
             cols_config = {}
             
-            if "Talhao" in df_talhao_fzd.columns:
-                cols_agrup_talhao.append("Talhao")
-                cols_config["Talhao"] = st.column_config.TextColumn("Talhão")
-            if "Area_Ha" in df_talhao_fzd.columns:
-                cols_agrup_talhao.append("Area_Ha")
-                cols_config["Area_Ha"] = st.column_config.NumberColumn("Área (Ha)", format="%.2f Ha")
+            # Verificação de colunas para evitar falhas de execução
+            if "Talhão" in df_talhao_fzd.columns:
+                cols_agrup_talhao.append("Talhão")
+                cols_config["Talhão"] = st.column_config.TextColumn("Talhão")
             if "Tipo" in df_talhao_fzd.columns:
                 cols_agrup_talhao.append("Tipo")
-                cols_config["Tipo"] = st.column_config.TextColumn("Tipo de Amostragem")
+                cols_config["Tipo"] = st.column_config.TextColumn("Tipo")
             if "Status" in df_talhao_fzd.columns:
                 cols_agrup_talhao.append("Status")
                 cols_config["Status"] = st.column_config.TextColumn("Status")
             
-            if "Talhao" in df_talhao_fzd.columns:
-                df_detalhe_talhao = df_talhao_fzd[cols_agrup_talhao].drop_duplicates().sort_values(by="Talhao")
+            # Caso as colunas de talhão existam, gera a visualização micro correspondente
+            if "Talhão" in df_talhao_fzd.columns:
+                df_detalhe_talhao = df_talhao_fzd[cols_agrup_talhao].drop_duplicates().sort_values(by="Talhão")
+                
                 st.dataframe(
                     df_detalhe_talhao,
                     column_config=cols_config,
@@ -473,226 +474,24 @@ with tab_geral:
                     use_container_width=True
                 )
             else:
-                st.warning("⚠️ A coluna de detalhe 'Talhao' não foi encontrada no arquivo carregado.")
+                st.warning("A coluna de detalhe 'Talhão' não foi encontrada no arquivo carregado.")
         else:
-            st.error(f"❌ Nenhuma fazenda encontrada com o código `{fzd_codigo_input}` nos filtros atuais.")
+            st.error(f"Nenhuma fazenda encontrada com o código `{fzd_codigo_input}` nos filtros atuais.")
     else:
-        st.info("💡 Digite o código de uma fazenda acima (or utilize o filtro da barra lateral) para carregar os talhões.")
+        st.info("Digite o código de uma fazenda acima (ou utilize o filtro da barra lateral) para carregar os talhões.")
 
-# ------------------------------------------------------------
-# ABA 2: PRAZOS, IMPEDIMENTOS & CURVA S (CÓDIGO CORRIGIDO)
-# ------------------------------------------------------------
 with tab_prazos:
-    st.markdown("### ⏳ Cronograma de Entregas & Análise de Gargalos")
-    st.caption("Acompanhamento das previsões de laudos e motivos de paralisação física no campo.")
-
-    @st.cache_data(ttl=3600)
-    def carregar_prioridades_campo():
-        caminho_prio = Path("prioridade_amostragem.xlsx")
-        if not caminho_prio.exists():
-            return pd.DataFrame()
-        try:
-            df = pd.read_excel(caminho_prio, sheet_name="FERTILIDADE")
-            df.columns = df.columns.str.strip()
-            return df
-        except:
-            return pd.DataFrame()
-
-    df_prio_bruto = carregar_prioridades_campo()
-
-    if df_prio_bruto.empty:
-        st.info("Aguardando estruturação do arquivo 'Prioridades amostragem.xlsx' para exibição do cronograma de campo.")
-    else:
-        # --- ALINHAMENTO DINÂMICO DOS FILTROS DA SIDEBAR ---
-        df_prio = df_prio_bruto.copy()
-
-        # 1. Aplica o filtro de Busca por Fazenda usando 'Cod_Fzda'
-        if busca_fazenda and 'termos' in locals() and termos:
-            mask_prio_fzd = df_prio["Cod_Fzda"].astype(str).str.lower().str.contains(padrao_regex, na=False, regex=True)
-            df_prio = df_prio[mask_prio_fzd]
-
-        # 2. Aplica o filtro de Unidades usando a coluna 'Emp'
-        if unidade_select:
-            df_prio = df_prio[df_prio["Emp"].isin(unidade_select)]
-
-        # 3. Aplica o filtro de Tipo (Como a aba atual é estritamente Fertilidade)
-        if tipo_select and "Fertilidade" not in tipo_select:
-            df_prio = pd.DataFrame(columns=df_prio.columns) # Esvazia se Fertilidade for desmarcada
-
-        # Nota: O filtro de Remessa é ignorado com segurança aqui, já que esta base não possui essa divisão.
-
-        if df_prio.empty:
-            st.info("Nenhum registro de cronograma corresponde aos filtros selecionados na barra lateral.")
-        else:
-            # --- ENGENHARIA DE MÉTRICAS OPERACIONAIS ---
-            area_total_prio = df_prio["Area_Ha"].sum()
-            df_parados = df_prio[df_prio["Report_fertilidade"].str.contains("Parado", na=False, case=False)]
-            area_parada = df_parados["Area_Ha"].sum()
-            pct_parado = area_parada / area_total_prio if area_total_prio > 0 else 0
-
-            df_prio["Previsao_entrega_laudos"] = pd.to_datetime(df_prio["Previsao_entrega_laudos"], errors="coerce")
-            proxima_data = df_prio[df_prio["Previsao_entrega_laudos"] >= hoje]["Previsao_entrega_laudos"].min()
-            proxima_data_str = proxima_data.strftime("%d/%m/%Y") if pd.notna(proxima_data) else "Sem previsões"
-
-            cp1, cp2, cp3 = st.columns(3)
-            with cp1:
-                card_kpi("Área Mapeada no Plano", f"{format_num(area_total_prio)} Ha", "Total filtrado para fertilidade")
-            with cp2:
-                card_kpi("Área Paralisada (Impedimentos)", f"{format_num(area_parada)} Ha", f"{pct_parado:.1%} do cronograma afetado")
-            with cp3:
-                card_kpi("Próximo Alvo de Entrega", proxima_data_str, "Prazo estimado do próximo lote de laudos")
-
-            st.markdown("<br>", unsafe_allow_html=True)
-
-            col_prio1, col_prio2 = st.columns([4, 5])
-
-            with col_prio1:
-                st.markdown("#### Distribuição de Área por Status")
-                df_graf_prio = df_prio.groupby("Report_fertilidade")["Area_Ha"].sum().reset_index()
-                
-                fig_prio_status = px.bar(
-                    df_graf_prio,
-                    x="Area_Ha", y="Report_fertilidade",
-                    orientation="h", text_auto=".1f",
-                    color="Report_fertilidade",
-                    color_discrete_map={
-                        "Andamento": CORES["verde"],
-                        "Aguardando Inicio": CORES["azul"],
-                        "Parado - Mato Alto": CORES["vermelho"],
-                        "Parado - Milheto": "#E11D48",
-                        "Parado - Mandioca": "#BE123C",
-                        "Cancelado": CORES["cinza"]
-                    },
-                    title="<b>Hectares por Situação do Relatório</b>"
-                )
-                fig_prio_status.update_layout(xaxis_title="Hectares (Ha)", yaxis_title="", showlegend=False)
-                st.plotly_chart(aplicar_layout_grafico(fig_prio_status, 350), use_container_width=True)
-
-            with col_prio2:
-                st.markdown("#### 🎯 Clique em uma linha para Auditar os Talhões")
-                
-                resumo_prio = df_prio.groupby("Report_fertilidade").agg(
-                    Talhoes=("Talhao", "count"),
-                    Area_Total=("Area_Ha", "sum")
-                ).reset_index().sort_values(by="Area_Total", ascending=False)
-
-                tabela_interativa = st.dataframe(
-                    resumo_prio,
-                    column_config={
-                        "Report_fertilidade": st.column_config.TextColumn("Status / Impedimento"),
-                        "Talhoes": st.column_config.NumberColumn("Qtd Talhões"),
-                        "Area_Total": st.column_config.NumberColumn("Área Total", format="%.2f Ha")
-                    },
-                    hide_index=True,
-                    use_container_width=True,
-                    on_select="rerun",
-                    selection_mode="single-row"
-                )
-
-            # --- SEÇÃO DRILL-DOWN INTERATIVA DA TABELA DE PRIORIDADES ---
-            linhas_selecionadas = tabela_interativa.get("selection", {}).get("rows", [])
-            
-            if linhas_selecionadas:
-                idx_linha = list(linhas_selecionadas)[0]
-                status_escolhido = resumo_prio.iloc[idx_linha]["Report_fertilidade"]
-                
-                st.markdown(f"### 🔍 Detalhamento Micro: `{status_escolhido}`")
-                df_detalhe_prio = df_prio[df_prio["Report_fertilidade"] == status_escolhido].copy()
-                
-                for col_data in ["Previsao_amostragem", "Previsao_chegada", "Previsao_entrega_laudos"]:
-                    if col_data in df_detalhe_prio.columns:
-                        df_detalhe_prio[col_data] = pd.to_datetime(df_detalhe_prio[col_data]).dt.strftime("%d/%m/%Y").fillna("-")
-
-                st.dataframe(
-                    df_detalhe_prio[["Emp", "Fazenda", "Setor", "Talhao", "Area_Ha", "Priopridade_amostragem", "Previsao_entrega_laudos"]].sort_values(by="Area_Ha", ascending=False),
-                    column_config={
-                        "Emp": st.column_config.TextColumn("Polo"),
-                        "Fazenda": st.column_config.TextColumn("Fazenda"),
-                        "Talhao": st.column_config.TextColumn("Talhão"),
-                        "Area_Ha": st.column_config.NumberColumn("Área", format="%.2f Ha"),
-                        "Priopridade_amostragem": st.column_config.TextColumn("Prioridade"),
-                        "Previsao_entrega_laudos": st.column_config.TextColumn("Previsão Entrega")
-                    },
-                    hide_index=True,
-                    use_container_width=True
-                )
-            else:
-                st.markdown("""
-                    <div style='text-align: center; padding: 20px; border: 1px dashed #E5E7EB; border-radius: 12px; color: #6B7280;'>
-                        💡 Clique em qualquer linha da tabela de status acima para abrir a auditoria detalhada de talhões sem poluir a tela.
-                    </div>
-                """, unsafe_allow_html=True)
-
-            # ============================================================
-            # CONSTRUÇÃO DA CURVA S (PLANEJAMENTO DE HECTARES)
-            # ============================================================
-            st.divider()
-            st.markdown("### 📈 Curva S — Planejamento de Avanço da Safra")
-            st.caption("Evolução acumulada em Hectares (Ha) comparando o ritmo de amostragem no campo com a liberação dos laudos.")
-
-            df_curva = df_prio.dropna(subset=["Previsao_amostragem", "Previsao_entrega_laudos"]).copy()
-            df_curva["Previsao_amostragem"] = pd.to_datetime(df_curva["Previsao_amostragem"])
-            df_curva["Previsao_entrega_laudos"] = pd.to_datetime(df_curva["Previsao_entrega_laudos"])
-            
-            df_curva = df_curva[df_curva["Previsao_entrega_laudos"].dt.year == 2026]
-
-            if not df_curva.empty:
-                df_campo_dia = df_curva.groupby("Previsao_amostragem")["Area_Ha"].sum().reset_index(name="Area_Campo")
-                df_lab_dia = df_curva.groupby("Previsao_entrega_laudos")["Area_Ha"].sum().reset_index(name="Area_Lab")
-
-                data_inicio = df_curva["Previsao_amostragem"].min()
-                data_fim = df_curva["Previsao_entrega_laudos"].max()
-                eixo_tempo = pd.date_range(start=data_inicio, end=data_fim).to_frame(index=False, name="Data")
-
-                df_s = eixo_tempo.merge(df_campo_dia, left_on="Data", right_on="Previsao_amostragem", how="left")
-                df_s = df_s.merge(df_lab_dia, left_on="Data", right_on="Previsao_entrega_laudos", how="left")
-                df_s.drop(columns=["Previsao_amostragem", "Previsao_entrega_laudos"], inplace=True, errors="ignore")
-                df_s.fillna(0, inplace=True)
-
-                df_s["Amostragem Planejada (Acumulado)"] = df_s["Area_Campo"].cumsum()
-                df_s["Entrega de Laudos Planejada (Acumulado)"] = df_s["Area_Lab"].cumsum()
-
-                df_plot_s = df_s.melt(
-                    id_vars=["Data"],
-                    value_vars=["Amostragem Planejada (Acumulado)", "Entrega de Laudos Planejada (Acumulado)"],
-                    var_name="Cronograma",
-                    value_name="Hectares Acumulados"
-                )
-
-                fig_s = px.line(
-                    df_plot_s,
-                    x="Data",
-                    y="Hectares Acumulados",
-                    color="Cronograma",
-                    color_discrete_map={
-                        "Amostragem Planejada (Acumulado)": CORES["verde_claro"],
-                        "Entrega de Laudos Planejada (Acumulado)": CORES["verde_escuro"]
-                    },
-                    title="<b>Evolução Cronológica da Área Atendida (Ha)</b>"
-                )
-
-                fig_s.update_traces(line=dict(width=4))
-                fig_s.update_layout(
-                    xaxis_title="Linha do Tempo (Dias/Semanas)",
-                    yaxis_title="Área Acumulada (Ha)",
-                    hovermode="x unified",
-                    legend=dict(orientation="h", y=1.12, x=0, title_text="")
-                )
-                fig_s.update_xaxes(tickformat="%d/%m")
-
-                st.plotly_chart(aplicar_layout_grafico(fig_s, 400), use_container_width=True)
-            else:
-                st.info("💡 Sem dados de previsão cronológica para o ano corrente de 2026 para gerar a Curva S.")
+    df_entregue = df_filtrado[df_filtrado['Status'] == 'Concluído']
+    df_pendente = df_filtrado[df_filtrado['Status'] == 'Pendente']
 
 # ============================================================
-# RODAPÉ CENTRALIZADO
+# RODAPÉ
 # ============================================================
 st.divider()
 
 st.markdown(
     """
-    <div style="text-align: center; color: #6B7280; font-size: 14px; line-height: 1.6;">
-        Dashboard desenvolvido para acompanhamento do quantitativo de amostras e status de conclusão das ordens de serviço ATVOS.<br>
+    <div style="text-align: center; color: #6B7280; font-size: 14px;">
         © 2026 Agrorobótica - Monitoramento de Entregas ATVOS
     </div>
     """,
