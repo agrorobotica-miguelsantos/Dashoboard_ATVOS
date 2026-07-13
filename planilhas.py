@@ -415,7 +415,7 @@ with tab_geral:
                     )
 
     # ============================================================
-    # INTERFACE SOB DEMANDA: DRILL-DOWN POR TALHÃO (MICRO-DADO)
+    # DRILL-DOWN Fazenda-Talhão
     # ============================================================
     st.divider()
     st.markdown("### Detalhamento por Talhão (Sob Demanda)")
@@ -432,7 +432,7 @@ with tab_geral:
     fzd_codigo_input = st.text_input(
         "Digite o Código da Fazenda:",
         value=codigo_padrao,
-        placeholder="Ex: 440335",
+        placeholder="Ex: 420136",
         help="Digite o código numérico da fazenda para listar seus talhões",
         key="txt_talhao_drilldown"
     )
@@ -446,7 +446,7 @@ with tab_geral:
             unidade_fzd = df_talhao_fzd["Unidade"].iloc[0]
             
             # Mostra um cabeçalho identificando claramente a fazenda localizada
-            st.markdown(f"**Fazenda Localizada:** `{fzd_codigo_input}` - **{nome_fzd_encontrado}** (Unidade: *{unidade_fzd}*)")
+            st.markdown(f"**Fazenda Localizada:** `{fzd_codigo_input}` - **{nome_fzd_encontrado}** (Unidade: **{unidade_fzd}**)")
             
             # Mapeamento e detecção segura de colunas na planilha de talhões
             cols_agrup_talhao = []
