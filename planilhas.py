@@ -484,6 +484,8 @@ with tab_prazos:
     st.markdown("### ⏳ Cronograma de Entregas & Análise de Gargalos")
     st.caption("Acompanhamento das previsões de laudos e motivos de paralisação física no campo.")
 
+    hoje = pd.Timestamp(dt.date.today())
+
     # Função interna temporária para carregar de forma segura a nova base de prioridades
     @st.cache_data(ttl=3600)
     def carregar_prioridades_campo():
