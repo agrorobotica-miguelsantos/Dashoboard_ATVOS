@@ -481,8 +481,135 @@ with tab_geral:
         st.info("Digite o código de uma fazenda acima (ou utilize o filtro da barra lateral) para carregar os talhões.")
 
 with tab_prazos:
-    df_entregue = df_filtrado[df_filtrado['Status'] == 'Concluído']
-    df_pendente = df_filtrado[df_filtrado['Status'] == 'Pendente']
+    st.markdown("### ⏳ Cronograma de Entregas & Análise de Gargalos")
+    st.caption("Acompanhamento das previsões de laudos e motivos de paralisação física no campo.")
+
+    # Função interna temporária para carregar de forma segura a nova base de prioridades
+    @st.cache_data(ttl=3600)
+    def carregar_prioridades_campo():
+        caminho_prio = Path("prioridade_amostragem.xlsx")
+        if not caminho_prio.exists():
+            return pd.DataFrame()
+        try:
+            df = pd.read_excel(caminho_prio, sheet_name="FERTILIDADE")
+            df.columns = df.columns.str.strip()
+            return df
+        except:
+            return pd.DataFrame()
+
+    df_prio = carregar_prioridades_campo()
+
+    if df_prio.empty:
+        st.info("Aguardando estruturação do arquivo 'Prioridades amostragem.xlsx' para exibição do cronograma de campo.")
+    else:
+        # --- ENGENHARIA DE MÉTRICAS OPERACIONAIS ---
+        area_total_prio = df_prio["Area_Ha"].sum()
+        
+        # Filtra o que está com status de "Parado"
+        df_parados = df_prio[df_prio["Report_fertilidade"].str.contains("Parado", na=False, case=False)]
+        area_parada = df_parados["Area_Ha"].sum()
+        pct_parado = area_parada / area_total_prio if area_total_prio > 0 else 0
+
+        # Próxima entrega prevista
+        df_prio["Previsao_entrega_laudos"] = pd.to_datetime(df_prio["Previsao_entrega_laudos"], errors="coerce")
+        proxima_data = df_prio[df_prio["Previsao_entrega_laudos"] >= hoje]["Previsao_entrega_laudos"].min()
+        proxima_data_str = proxima_data.strftime("%d/%m/%Y") if pd.notna(proxima_data) else "Sem previsões"
+
+        # --- NOVOS CARTOES DE KPI DA ABA ---
+        cp1, cp2, cp3 = st.columns(3)
+        with cp1:
+            card_kpi("Área Mapeada no Plano", f"{format_num(area_total_prio)} Ha", "Total planejado para fertilidade")
+        with cp2:
+            card_kpi("Área Paralisada (Impedimentos)", f"{format_num(area_parada)} Ha", f"{pct_parado:.1%} do cronograma afetado")
+        with cp3:
+            card_kpi("Próximo Alvo de Entrega", proxima_data_str, "Prazo estimado do próximo lote de laudos")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # --- GRÁFICO E TABELA MACRO (LADO A LADO) ---
+        col_prio1, col_prio2 = st.columns([4, 5])
+
+        with col_prio1:
+            st.markdown("#### Distribuição de Área por Status")
+            df_graf_prio = df_prio.groupby("Report_fertilidade")["Area_Ha"].sum().reset_index()
+            
+            fig_prio_status = px.bar(
+                df_graf_prio,
+                x="Area_Ha", y="Report_fertilidade",
+                orientation="h", text_auto=".1f",
+                color="Report_fertilidade",
+                color_discrete_map={
+                    "Andamento": CORES["verde"],
+                    "Aguardando Inicio": CORES["azul"],
+                    "Parado - Mato Alto": CORES["vermelho"],
+                    "Parado - Milheto": "#E11D48",
+                    "Parado - Mandioca": "#BE123C",
+                    "Cancelado": CORES["cinza"]
+                },
+                title="<b>Hectares por Situação do Relatório</b>"
+            )
+            fig_prio_status.update_layout(xaxis_title="Hectares (Ha)", yaxis_title="", showlegend=False)
+            st.plotly_chart(aplicar_layout_grafico(fig_prio_status, 350), use_container_width=True)
+
+        with col_prio2:
+            st.markdown("#### 🎯 Clique em uma linha para Auditar os Talhões")
+            
+            # Monta o resumo estatístico para a tabela interativa
+            resumo_prio = df_prio.groupby("Report_fertilidade").agg(
+                Talhoes=("Talhao", "count"),
+                Area_Total=("Area_Ha", "sum")
+            ).reset_index().sort_values(by="Area_Total", ascending=False)
+
+            # Renderiza a tabela habilitando o clique interativo do Streamlit
+            tabela_interativa = st.dataframe(
+                resumo_prio,
+                column_config={
+                    "Report_fertilidade": st.column_config.TextColumn("Status / Impedimento"),
+                    "Talhoes": st.column_config.NumberColumn("Qtd Talhões"),
+                    "Area_Total": st.column_config.NumberColumn("Área Total", format="%.2f Ha")
+                },
+                hide_index=True,
+                use_container_width=True,
+                on_select="rerun",          # Faz o script re-executar ao clicar
+                selection_mode="single-row" # Permite selecionar uma linha por vez
+            )
+
+        # --- SEÇÃO DRILL-DOWN DINÂMICA (APARECE APENAS AO CLICAR) ---
+        linhas_selecionadas = tabela_interativa.get("selection", {}).get("rows", [])
+        
+        if linhas_selecionadas:
+            idx_linha = list(linhas_selecionadas)[0]
+            status_escolhido = resumo_prio.iloc[idx_linha]["Report_fertilidade"]
+            
+            st.markdown(f"### 🔍 Detalhamento Micro: `{status_escolhido}`")
+            
+            # Filtra os talhões estritamente do status clicado
+            df_detalhe_prio = df_prio[df_prio["Report_fertilidade"] == status_escolhido].copy()
+            
+            # Formata datas para exibição limpa na tabela micro
+            for col_data in ["Previsao_amostragem", "Previsao_chegada", "Previsao_entrega_laudos"]:
+                if col_data in df_detalhe_prio.columns:
+                    df_detalhe_prio[col_data] = df_detalhe_prio[col_data].dt.strftime("%d/%m/%Y").fillna("-")
+
+            st.dataframe(
+                df_detalhe_prio[["Emp", "Fazenda", "Setor", "Talhao", "Area_Ha", "Priopridade_amostragem", "Previsao_entrega_laudos"]].sort_values(by="Area_Ha", ascending=False),
+                column_config={
+                    "Emp": st.column_config.TextColumn("Polo"),
+                    "Fazenda": st.column_config.TextColumn("Fazenda"),
+                    "Talhao": st.column_config.TextColumn("Talhão"),
+                    "Area_Ha": st.column_config.NumberColumn("Área", format="%.2f Ha"),
+                    "Priopridade_amostragem": st.column_config.TextColumn("Prioridade"),
+                    "Previsao_entrega_laudos": st.column_config.TextColumn("Previsão Entrega")
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+        else:
+            st.markdown("""
+                <div style='text-align: center; padding: 20px; border: 1px dashed #E5E7EB; border-radius: 12px; color: #6B7280;'>
+                    💡 Clique em qualquer linha da tabela de status acima para abrir a auditoria detalhada de talhões sem poluir a tela.
+                </div>
+            """, unsafe_allow_html=True)
 
 # ============================================================
 # RODAPÉ
