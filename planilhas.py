@@ -546,13 +546,17 @@ with tab_prazos_area:
                 padrao_regex = "|".join(termos)
                 mask_cod_sol = df_sol_filtrado["cod_fazenda"].astype(str).str.lower().str.contains(padrao_regex, na=False, regex=True)
                 df_sol_filtrado = df_sol_filtrado[mask_cod_sol]
-        if tipo_select and "tipo_amostra" in df_sol_filtrado.columns:
+            
+        if tipo_select and len(tipo_select) < len(tipos_disponiveis) and "tipo_amostra" in df_sol_filtrado.columns:
             df_sol_filtrado = df_sol_filtrado[df_sol_filtrado["tipo_amostra"].isin(tipo_select)]
-        if remessa_select and "remessa_logistica" in df_sol_filtrado.columns:
+        
+        if remessa_select and len(remessa_select) < len(remessas_disponiveis) and "remessa_logistica" in df_sol_filtrado.columns:
             remessas_limpas = [str(int(r)) if str(r).isdigit() else str(r) for r in remessa_select]
             df_sol_filtrado = df_sol_filtrado[df_sol_filtrado["remessa_logistica"].isin(remessas_limpas)]
-        if unidade_select and "unidade" in df_sol_filtrado.columns:
-            df_sol_filtrado = df_sol_filtrado[df_sol_filtrado["unidade"].isin(unidade_select)]
+        
+        if unidade_select and len(unidade_select) < len(unidades_disponiveis) and "unidade" in df_sol_filtrado.columns:
+            unidades_limpas = [str(u).strip() for u in unidade_select]
+            df_sol_filtrado = df_sol_filtrado[df_sol_filtrado["unidade"].isin(unidades_limpas)]
 
         if "area_ha" in df_sol_filtrado.columns:
             
@@ -650,7 +654,7 @@ with tab_prazos_area:
             c_kpi1, c_kpi2, c_kpi3, c_kpi4 = st.columns(4)
 
             with c_kpi1:
-                card_kpi("Área Total (Escopo)", f"{format_num(area_total)} ha", "Escopo filtrado")
+                card_kpi("Área Total", f"{format_num(area_total)} ha", "Escopo filtrado")
             with c_kpi2:
                 card_kpi("Área Amostrada", f"{format_num(area_amostrada)} ha", f"{(area_amostrada / area_total if area_total else 0):.1%} do escopo")
             with c_kpi3:
