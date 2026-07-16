@@ -106,6 +106,22 @@ st.markdown(
             color: {CORES["cinza"]};
         }}
 
+        .kpi-card-ociosidade {{
+            background-color: white;
+            border-radius: 20px;
+            padding: 20px 22px;
+            border: 1px dashed {CORES["borda"]};
+            box-shadow: none;
+            min-height: 125px;
+        }}
+
+        .kpi-value-ociosidade {{
+            font-size: 30px;
+            color: {CORES["verde_escuro"]};
+            font-weight: 800;
+            margin-bottom: 4px;
+        }}
+
         .section-card {{
             background-color: white;
             padding: 22px;
@@ -132,7 +148,6 @@ st.markdown(
 def format_num(valor: float) -> str:
     return f"{valor:,.0f}".replace(",", ".")
 
-
 def card_kpi(titulo, valor, detalhe):
     st.markdown(
         f"""
@@ -145,6 +160,17 @@ def card_kpi(titulo, valor, detalhe):
         unsafe_allow_html=True,
     )
 
+def card_kpi_ociosidade(titulo, valor, detalhe):
+    st.markdown(
+        f"""
+        <div class="kpi-card-ociosidade">
+            <div class="kpi-label">{titulo}</div>
+            <div class="kpi-value-ociosidade">{valor}</div>
+            <div class="kpi-help">{detalhe}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 def aplicar_layout_grafico(fig, altura=400):
     fig.update_layout(
@@ -212,14 +238,16 @@ def carregar_solicitacao():
         
         # Tratamento de tipos
         if "remessa_logistica" in df.columns:
-            df["remessa_logistica"] = pd.to_numeric(df["remessa_logistica"], errors="coerce").astype(int).astype(str)
+            df["remessa_logistica"] = pd.to_numeric(df["remessa_logistica"], errors="coerce").fillna(-1).astype(int).astype(str)
+            df["remessa_logistica"] = df["remessa_logistica"].replace("-1", "")
         if "unidade" in df.columns:
             df["unidade"] = df["unidade"].astype(str).str.strip()
             
         # Tratamento de datas
         colunas_datas = ['data_inicio_amostragem', 'data_conclusao_amostragem',
                          'data_inicio_logistica','data_conclusao_logistica',
-                         'data_inicio_analise', 'data_conclusao_analise']
+                         'data_inicio_analise', 'data_conclusao_analise',
+                         'data_inicio_laudo', 'data_conclusao_laudo']
         for col in colunas_datas:
             if col in df.columns:
                 df[col] = pd.to_datetime(df[col], errors='coerce')
@@ -242,6 +270,7 @@ if df_bruto.empty:
 
 df_fazendas = pd.read_excel("fazendas.xlsx")
 df_datas = pd.read_excel("datas_remessas.xlsx", dtype={'Remessa': str})
+
 df_bruto = (
     df_bruto
     .merge(df_fazendas, how='inner', left_on='Fazenda', right_on='Cod_Fazenda')
@@ -488,7 +517,6 @@ with tab_geral:
                 
                 if "Talhão" in df_talhao_fzd.columns:
                     df_detalhe_talhao = df_talhao_fzd[cols_agrup_talhao].drop_duplicates().sort_values(by="Talhão")
-                    
                     st.dataframe(
                         df_detalhe_talhao,
                         column_config=cols_config,
@@ -507,13 +535,10 @@ with tab_prazos_area:
     df_solicitacao = carregar_solicitacao()
 
     if not df_solicitacao.empty:
-        #st.markdown("### Visão Geral e Desempenho (SLA)")
-        #st.caption("Métricas baseadas em filtros da barra lateral. Fonte dos Dados: `atvos_solicitacao2.xlsx`")
-        
         df_sol_filtrado = df_solicitacao.copy()
-        
+
         # ============================================================
-        # SINCRONIZAÇÃO: APLICANDO OS MESMOS FILTROS DA SIDEBAR
+        # SINCRONIZAÇÃO DE FILTROS DA SIDEBAR
         # ============================================================
         if busca_fazenda:
             termos = [re.escape(t.strip().lower()) for t in re.split(r'[,;\s]+', busca_fazenda) if t.strip()]
@@ -530,77 +555,101 @@ with tab_prazos_area:
             df_sol_filtrado = df_sol_filtrado[df_sol_filtrado["unidade"].isin(unidade_select)]
 
         if "area_ha" in df_sol_filtrado.columns:
-            # --- 1. CÁLCULO DAS ÁREAS ---
+            
+            # ============================================================
+            # 1. CÁLCULO DE ÁREAS GERAIS
+            # ============================================================
             area_total = df_sol_filtrado["area_ha"].sum()
             area_amostrada = df_sol_filtrado.loc[df_sol_filtrado['data_conclusao_amostragem'].notna(), 'area_ha'].sum() if "data_conclusao_amostragem" in df_sol_filtrado.columns else 0
             area_logistica = df_sol_filtrado.loc[df_sol_filtrado['data_conclusao_logistica'].notna(), 'area_ha'].sum() if "data_conclusao_logistica" in df_sol_filtrado.columns else 0
             area_analisada = df_sol_filtrado.loc[df_sol_filtrado['data_conclusao_analise'].notna(), 'area_ha'].sum() if "data_conclusao_analise" in df_sol_filtrado.columns else 0
-            
-           # ============================================================
-            # CÁLCULO DOS TEMPOS (SLA) ---
+
+            # ============================================================
+            # 2. CÁLCULO DE TEMPOS (CICLO E ESPERA)
             # ============================================================
             
-            # --- 2.1 Ciclo de Execução (Trabalho Real) ---
+            # --- Ciclo de Execução (Trabalho Real) ---
             if "data_inicio_amostragem" in df_sol_filtrado.columns and "data_conclusao_amostragem" in df_sol_filtrado.columns:
-                df_sol_filtrado['ciclo_amos'] = (df_sol_filtrado['data_conclusao_amostragem'] - df_sol_filtrado['data_inicio_amostragem']).dt.days
-                avg_ciclo_amos = df_sol_filtrado.loc[df_sol_filtrado['ciclo_amos'] >= 0, 'ciclo_amos'].mean()
+                diferenca_amos = (df_sol_filtrado['data_conclusao_amostragem'] - df_sol_filtrado['data_inicio_amostragem']).dt.days
+                df_sol_filtrado['ciclo_amos'] = diferenca_amos.clip(lower=1)
+                avg_ciclo_amos = df_sol_filtrado['ciclo_amos'].median()
             else:
                 avg_ciclo_amos = float('nan')
 
             if "data_inicio_logistica" in df_sol_filtrado.columns and "data_conclusao_logistica" in df_sol_filtrado.columns:
-                df_sol_filtrado['ciclo_log'] = (df_sol_filtrado['data_conclusao_logistica'] - df_sol_filtrado['data_inicio_logistica']).dt.days
-                avg_ciclo_log = df_sol_filtrado.loc[df_sol_filtrado['ciclo_log'] >= 0, 'ciclo_log'].mean()
+                diferenca_log = (df_sol_filtrado['data_conclusao_logistica'] - df_sol_filtrado['data_inicio_logistica']).dt.days
+                df_sol_filtrado['ciclo_log'] = diferenca_log.clip(lower=1)
+                avg_ciclo_log = df_sol_filtrado['ciclo_log'].median()
             else:
                 avg_ciclo_log = float('nan')
 
             if "data_inicio_analise" in df_sol_filtrado.columns and "data_conclusao_analise" in df_sol_filtrado.columns:
-                df_sol_filtrado['ciclo_ana'] = (df_sol_filtrado['data_conclusao_analise'] - df_sol_filtrado['data_inicio_analise']).dt.days
-                avg_ciclo_ana = df_sol_filtrado.loc[df_sol_filtrado['ciclo_ana'] >= 0, 'ciclo_ana'].mean()
+                diferenca_ana = (df_sol_filtrado['data_conclusao_analise'] - df_sol_filtrado['data_inicio_analise']).dt.days
+                df_sol_filtrado['ciclo_ana'] = diferenca_ana.clip(lower=1)
+                avg_ciclo_ana = df_sol_filtrado['ciclo_ana'].median()
             else:
                 avg_ciclo_ana = float('nan')
 
-            # --- 2.2 Tempos de Espera (Transição / Ociosidade) ---
+            if "data_inicio_laudo" in df_sol_filtrado.columns and "data_conclusao_laudo" in df_sol_filtrado.columns:
+                diferenca_laudo = (df_sol_filtrado['data_conclusao_laudo'] - df_sol_filtrado['data_inicio_laudo']).dt.days
+                df_sol_filtrado['ciclo_laudo'] = diferenca_laudo.clip(lower=1)
+                avg_ciclo_laudo = df_sol_filtrado['ciclo_laudo'].median()
+            else:
+                avg_ciclo_laudo = float('nan')
+
+            # --- Tempos de Espera (Ociosidade) ---
             if "data_conclusao_amostragem" in df_sol_filtrado.columns and "data_inicio_logistica" in df_sol_filtrado.columns:
                 df_sol_filtrado['espera_campo_log'] = (df_sol_filtrado['data_inicio_logistica'] - df_sol_filtrado['data_conclusao_amostragem']).dt.days
-                avg_espera_campo_log = df_sol_filtrado.loc[df_sol_filtrado['espera_campo_log'] >= 0, 'espera_campo_log'].mean()
+                avg_espera_campo_log = df_sol_filtrado.loc[df_sol_filtrado['espera_campo_log'] >= 0, 'espera_campo_log'].median()
             else:
                 avg_espera_campo_log = float('nan')
 
             if "data_conclusao_logistica" in df_sol_filtrado.columns and "data_inicio_analise" in df_sol_filtrado.columns:
                 df_sol_filtrado['espera_log_lab'] = (df_sol_filtrado['data_inicio_analise'] - df_sol_filtrado['data_conclusao_logistica']).dt.days
-                avg_espera_log_lab = df_sol_filtrado.loc[df_sol_filtrado['espera_log_lab'] >= 0, 'espera_log_lab'].mean()
+                avg_espera_log_lab = df_sol_filtrado.loc[df_sol_filtrado['espera_log_lab'] >= 0, 'espera_log_lab'].median()
             else:
                 avg_espera_log_lab = float('nan')
 
-
-            # --- RENDERIZAÇÃO DOS CARDS (Com visão de Gargalo) ---
-            #st.markdown("##### Desempenho Operacional: Ciclo vs. Espera")
-            #st.caption("Acompanhe o tempo de execução (trabalho) contra o tempo ocioso das amostras paradas entre as etapas.")
-            st.markdown("##### Tempo de execução")
-            c_tempo_amostragem, c_tempo_logistica, c_tempo_analise = st.columns([1, 1, 1])
+            # ============================================================
+            # 3. RENDERIZAÇÃO DA TELA (KPIs E GRÁFICOS)
+            # ============================================================
             
-            with c_tempo_amostragem:
-                valor_ciclo = f"{avg_ciclo_amos:.1f} dias" if pd.notna(avg_ciclo_amos) else "N/A"
-                # A amostragem é a etapa inicial, então o tempo de espera não precede a ela, 
-                # mas podemos destacar o trabalho de campo puro.
-                card_kpi("Duração: Amostragem (Coleta)", valor_ciclo, "Tempo médio da execução no campo")
-                
-            with c_tempo_logistica:
-                valor_ciclo = f"{avg_ciclo_log:.1f} dias" if pd.notna(avg_ciclo_log) else "N/A"
-                valor_espera = f"Ociosidade (Espera no Campo): {avg_espera_campo_log:.1f} dias" if pd.notna(avg_espera_campo_log) else "Sem dados de espera"
-                # O detalhe mostrará quanto tempo demorou pra logística começar a agir
-                card_kpi("Duração: Transporte Logístico", valor_ciclo, valor_espera)
-                
-            with c_tempo_analise:
-                valor_ciclo = f"{avg_ciclo_ana:.1f} dias" if pd.notna(avg_ciclo_ana) else "N/A"
-                valor_espera = f"Ociosidade (Espera na Fila do Lab): {avg_espera_log_lab:.1f} dias" if pd.notna(avg_espera_log_lab) else "Sem dados de fila"
-                # O detalhe mostrará quanto tempo demorou pra bancada do lab iniciar
-                card_kpi("Duração: Análise Laboratorial", valor_ciclo, valor_espera)
-
+            # --- Bloco 1: Tempos Operacionais (2 Linhas) ---
+            st.markdown("##### Linha do Tempo: Execução vs Ociosidade")
             
-            st.markdown("<br>", unsafe_allow_html=True)
-            st.markdown("##### Quantitativo de Área")
+            st.markdown("**Fases de Trabalho Real**")
+            c1, c2, c3, c4, c5, c6 = st.columns(6)
+            
+            with c1:
+                valor_ciclo = f"{avg_ciclo_amos:.0f} dias" if pd.notna(avg_ciclo_amos) else "N/A"
+                card_kpi("1. Coleta", valor_ciclo, "Amostragem")
+            
+            with c2:
+                valor_espera = f"{avg_espera_campo_log:.0f} dias" if pd.notna(avg_espera_campo_log) else "N/A"
+                card_kpi_ociosidade("Ociosidade: Logística", valor_espera, "Até embarque")
+                
+            with c3:
+                valor_ciclo = f"{avg_ciclo_log:.0f} dias" if pd.notna(avg_ciclo_log) else "N/A"
+                card_kpi("2. Transporte", valor_ciclo, "Transporte das amostras")
+                
+            with c4:
+                valor_espera = f"{avg_espera_log_lab:.0f} dias" if pd.notna(avg_espera_log_lab) else "N/A"
+                card_kpi_ociosidade("Ociosidade: Processos", valor_espera, "Até bancada")
+                
+            with c5:
+                valor_ciclo = f"{avg_ciclo_ana:.0f} dias" if pd.notna(avg_ciclo_ana) else "N/A"
+                card_kpi("3. Laboratório Químico", valor_ciclo, "Análises laboratoriais")
+            
+            with c6:
+                valor_ciclo = f"{avg_ciclo_laudo:.0f} dias" if pd.notna(avg_ciclo_laudo) else "N/A" 
+                card_kpi("4. Gestão de Dados", valor_ciclo, "Emissão dos laudos")
+            
+            st.divider()
+
+            # --- Bloco 2: Quantitativo de Área ---
+            st.markdown("**Quantitativo de Área**")
             c_kpi1, c_kpi2, c_kpi3, c_kpi4 = st.columns(4)
+
             with c_kpi1:
                 card_kpi("Área Total (Escopo)", f"{format_num(area_total)} ha", "Escopo filtrado")
             with c_kpi2:
@@ -612,9 +661,9 @@ with tab_prazos_area:
             
             st.divider()
 
-            # 3. Evolução Temporal
-            #st.markdown("#### Evolução acumulada")
-            #st.caption("Visão cronológica do avanço do projeto")
+            # --- Bloco 3: Evolução Temporal (Gráfico Funil) ---
+            st.markdown("#### Evolução Acumulada Semanal")
+            st.caption("Visão cronológica de evolução. Áreas sobrepostas mostram o volume real liberado.")
 
             df_evo = pd.DataFrame()
 
