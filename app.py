@@ -370,7 +370,7 @@ st.markdown(
 tab_geral, tab_prazos_area, tab_planejamento = st.tabs(["Quantitativo e Status", "Prazos e Áreas", "Planejamento Semanal"])
 
 with tab_geral:
-    st.markdown("##### **Visão Geral de Entregas**")
+    st.markdown("###### **Visão Geral de Entregas**")
     if df_filtrado.empty:
         st.info("Nenhum dado corresponde aos filtros selecionados na barra lateral.")
     else:
