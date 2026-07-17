@@ -280,6 +280,7 @@ df_bruto = (
     .merge(df_datas, how='inner', left_on=['Remessa', 'Unidade', 'Tipo'], right_on=['Remessa', 'Unidade', 'Tipo'])
 )
 df_bruto['Nome_Fazenda'] = df_bruto['Nome_Fazenda'].str.strip()
+df_bruto['Fazenda'] = df_bruto['Fazenda'].astype("string")
 
 col_ref = "Ca_(mmolc/dm3)"
 if col_ref not in df_bruto.columns:
