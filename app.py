@@ -666,7 +666,7 @@ with tab_prazos_area:
 
             # --- Bloco 3: Evolução Temporal (Gráfico Funil) ---
             st.markdown("##### **Ritmo de execução e entregas**")
-            st.caption("Visão cronológica de evolução. Áreas sobrepostas mostram o volume real liberado.")
+            st.caption("Monitoramento do volume de hectares concluídos por semana.")
 
             df_evo = pd.DataFrame()
 
