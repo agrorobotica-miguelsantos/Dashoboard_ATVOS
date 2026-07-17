@@ -388,7 +388,6 @@ with tab_geral:
             card_kpi("Pendentes", f"{format_num(pendentes)} un", f"{(1 - pct_progresso):.0%} em andamento")
 
         st.markdown("<br>", unsafe_allow_html=True)
-        st.divider()
 
         col_graf1, col_graf2 = st.columns(2)
 
