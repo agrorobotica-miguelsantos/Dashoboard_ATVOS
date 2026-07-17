@@ -269,6 +269,8 @@ if df_bruto.empty:
     st.stop()
 
 df_fazendas = pd.read_excel("fazendas.xlsx")
+df_fazendas["Nome_Fazenda"] = df_fazendas["Nome_Fazenda"].str.strip()
+df_fazendas = df_fazendas.drop_duplicates(subset=["Cod_Fazenda", "Nome_Fazenda"])
 df_datas = pd.read_excel("datas_remessas.xlsx", dtype={'Remessa': str})
 
 df_bruto = (
