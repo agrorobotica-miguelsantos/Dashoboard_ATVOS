@@ -367,7 +367,7 @@ st.markdown(
 # ESTRUTURAÇÃO EM ABAS
 # ============================================================
 
-tab_geral, tab_prazos_area = st.tabs(["Quantitativo e Status", "Prazos e Áreas"])
+tab_geral, tab_prazos_area, tab_planejamento = st.tabs(["Quantitativo e Status", "Prazos e Áreas", "Planejamento Semanal"])
 
 with tab_geral:
     if df_filtrado.empty:
@@ -709,6 +709,8 @@ with tab_prazos_area:
         else:
             st.warning("A coluna de área ('area_ha') não foi encontrada no arquivo de solicitações.")
 
+with tab_geral:
+    st.title("Página em construção")
 # ============================================================
 # RODAPÉ
 # ============================================================
