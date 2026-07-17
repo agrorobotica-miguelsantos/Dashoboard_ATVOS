@@ -271,9 +271,6 @@ if df_bruto.empty:
 df_fazendas = pd.read_excel("fazendas.xlsx")
 df_datas = pd.read_excel("datas_remessas.xlsx", dtype={'Remessa': str})
 
-df_bruto['Fazenda'] = df_bruto['Fazenda'].astype('string').str.strip().str.replace(r'\.0$', '', regex=True)
-df_fazendas['Cod_Fazenda'] = df_fazendas['Cod_Fazenda'].astype('string').str.strip().str.replace(r'\.0$', '', regex=True)
-
 df_bruto = (
     df_bruto
     .merge(df_fazendas, how='inner', left_on='Fazenda', right_on='Cod_Fazenda')
