@@ -710,7 +710,7 @@ with tab_prazos_area:
             st.warning("A coluna de área ('area_ha') não foi encontrada no arquivo de solicitações.")
 
 with tab_geral:
-    st.title("Página em construção")
+    st.markdown("Página em construção")
 # ============================================================
 # RODAPÉ
 # ============================================================
