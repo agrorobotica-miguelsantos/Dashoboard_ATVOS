@@ -656,19 +656,19 @@ with tab_prazos_area:
             c_kpi1, c_kpi2, c_kpi3, c_kpi4 = st.columns(4)
 
             with c_kpi1:
-                card_kpi("Área Total", f"{format_num(area_total)} ha", "Escopo filtrado")
+                card_kpi("Área Total (ha)", f"{format_num(area_total)} ha", "Área total em hectares da planilha base")
             with c_kpi2:
-                card_kpi("Área Amostrada", f"{format_num(area_amostrada)} ha", f"{(area_amostrada / area_total if area_total else 0):.1%} do escopo")
+                card_kpi("Área Amostrada (ha)", f"{format_num(area_amostrada)} ha", f"{(area_amostrada / area_total if area_total else 0):.1%} do total")
             with c_kpi3:
-                card_kpi("Área Logística", f"{format_num(area_logistica)} ha", f"{(area_logistica / area_total if area_total else 0):.1%} do escopo")
+                card_kpi("Área Logística Completa (ha)", f"{format_num(area_logistica)} ha", f"{(area_logistica / area_total if area_total else 0):.1%} do total")
             with c_kpi4:
-                card_kpi("Área Analisada", f"{format_num(area_analisada)} ha", f"{(area_analisada / area_total if area_total else 0):.1%} do escopo")
+                card_kpi("Área Analisada (ha)", f"{format_num(area_analisada)} ha", f"{(area_analisada / area_total if area_total else 0):.1%} do total")
             
             st.divider()
 
             # --- Bloco 3: Evolução Temporal (Gráfico Funil) ---
             st.markdown("##### **Ritmo de execução e entregas**")
-            st.caption("Visão cronológica de evolução. Áreas sobrepostas mostram o volume real liberado.")
+            st.caption("Monitoramento do volume de hectares concluídos.")
 
             df_evo = pd.DataFrame()
 
