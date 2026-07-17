@@ -268,7 +268,10 @@ if df_bruto.empty:
     st.error("Nenhum dado bruto pôde ser carregado da pasta `pedidos`.")
     st.stop()
 
-df_fazendas = pd.read_excel("fazendas.xlsx")
+df_fazendas = pd.read_excel("fazendas.xlsx", dtype={"Cod_Fazenda": str})
+df_fazendas["Cod_Fazenda"] = df_fazendas["Cod_Fazenda"].str.strip()
+df_fazendas["Nome_Fazenda"] = df_fazendas["Nome_Fazenda"].astype("string").str.strip().str.upper()
+df_fazendas = df_fazendas.drop_duplicates(subset=["Cod_Fazenda", "Nome_Fazenda"])
 df_datas = pd.read_excel("datas_remessas.xlsx", dtype={'Remessa': str})
 
 df_bruto = (
@@ -663,7 +666,7 @@ with tab_prazos_area:
                 card_kpi("Área Analisada", f"{format_num(area_analisada)} ha", f"{(area_analisada / area_total if area_total else 0):.1%} do escopo")
             
             st.divider()
-
+            
             # --- Bloco 3: Evolução Temporal (Gráfico Funil) ---
             st.markdown("###### **Ritmo de execução e entregas**")
             st.caption("Monitoramento do volume de hectares concluídos por semana.")
