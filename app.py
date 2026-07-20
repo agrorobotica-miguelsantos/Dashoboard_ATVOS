@@ -698,7 +698,9 @@ with tab_prazos_area:
 
                 fig_evo = px.area(
                     df_evo_plot, x='Data', y='Area_Acumulada', color='Etapa',
-                    color_discrete_map={"1. Amostrada": CORES["verde_claro"], "2. Logística": CORES["verde"], "3. Analisada": CORES["verde_escuro"]},
+                    color_discrete_map={"1.Área Amostrada (ha)": CORES["verde_claro"],
+                                        "2.Área Logística Completa (ha)": CORES["verde"],
+                                        "3.Área Analisada (ha)": CORES["verde_escuro"]},
                     line_shape="linear"
                 )
                 fig_evo.update_traces(stackgroup=None, fill='tozeroy')
