@@ -675,19 +675,19 @@ with tab_prazos_area:
             if "data_conclusao_amostragem" in df_sol_filtrado.columns:
                 amos_evo = df_sol_filtrado.dropna(subset=['data_conclusao_amostragem']).groupby(pd.Grouper(key='data_conclusao_amostragem', freq='W'))['area_ha'].sum().reset_index()
                 amos_evo.columns = ['Data', 'Area']
-                amos_evo['Etapa'] = '1. Amostrada'
+                amos_evo['Etapa'] = '1.Área Amostrada (ha)'
                 df_evo = pd.concat([df_evo, amos_evo])
                 
             if "data_conclusao_logistica" in df_sol_filtrado.columns:
                 log_evo = df_sol_filtrado.dropna(subset=['data_conclusao_logistica']).groupby(pd.Grouper(key='data_conclusao_logistica', freq='W'))['area_ha'].sum().reset_index()
                 log_evo.columns = ['Data', 'Area']
-                log_evo['Etapa'] = '2. Logística'
+                log_evo['Etapa'] = '2.Área Logística Completa (ha)'
                 df_evo = pd.concat([df_evo, log_evo])
                 
             if "data_conclusao_analise" in df_sol_filtrado.columns:
                 ana_evo = df_sol_filtrado.dropna(subset=['data_conclusao_analise']).groupby(pd.Grouper(key='data_conclusao_analise', freq='W'))['area_ha'].sum().reset_index()
                 ana_evo.columns = ['Data', 'Area']
-                ana_evo['Etapa'] = '3. Analisada'
+                ana_evo['Etapa'] = '3.Área Analisada (ha)'
                 df_evo = pd.concat([df_evo, ana_evo])
 
             if not df_evo.empty:
