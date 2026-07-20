@@ -406,7 +406,7 @@ with tab_geral:
             )
             fig_remessa.update_layout(legend_title_text="Status", separators=",.", yaxis_tickformat=",d")
             fig_remessa.update_yaxes(title_text="Nº Amostras")
-            fig_remessa.update_xaxes(type="category", categoryorder="array", categoryarray=ordem_remessas, title_text="", range=[-0.5, 14.5], rangeslider=dict(visible=True))
+            fig_remessa.update_xaxes(type="category", categoryorder="array", categoryarray=ordem_remessas, title_text="")
             fig_remessa.update_traces(textangle=0, cliponaxis=False)
             
             tipos_ativos = df_graf_remessa["Tipo"].unique()
