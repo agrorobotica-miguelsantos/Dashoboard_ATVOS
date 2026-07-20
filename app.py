@@ -704,7 +704,7 @@ with tab_prazos_area:
                     line_shape="linear"
                 )
                 fig_evo.update_traces(stackgroup=None, fill='tozeroy')
-                fig_evo.update_layout(xaxis_title="Período", yaxis_title="Área Acumulada (ha)", hovermode="x unified", separators=",.")
+                fig_evo.update_layout(xaxis_title="Período", yaxis_title="Área Acumulada (ha)", hovermode="x unified", separators=".,")
                 fig_evo.update_yaxes(tickformat=".0f")
 
                 st.plotly_chart(aplicar_layout_grafico(fig_evo, 450), use_container_width=True)
