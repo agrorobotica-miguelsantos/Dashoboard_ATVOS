@@ -222,7 +222,7 @@ def carregar_dados_locais():
             df_temp.insert(2, "Tipo", tipo)
             df_temp.insert(3, "Arquivo_Origem", planilha.name)
 
-            lista_combinada.appedn(df_temp)
+            lista_combinada.append(df_temp)
 
         except PermissionError:
             st.error(f"O arquivo {planilha.name} está aberto ou bloqueado. Feche o arquivo e atualize os dados")
