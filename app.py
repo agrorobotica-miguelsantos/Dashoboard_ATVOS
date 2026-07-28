@@ -273,7 +273,7 @@ def carregar_solicitacao():
 df_bruto = carregar_dados_locais()
 
 if df_bruto.empty:
-    st.error("Nenhum dado bruto pôde ser carregado da pasta `pedidos`.")s
+    st.error("Nenhum dado bruto pôde ser carregado da pasta `pedidos`.")
     st.stop()
 
 df_fazendas = pd.read_excel("fazendas.xlsx")
