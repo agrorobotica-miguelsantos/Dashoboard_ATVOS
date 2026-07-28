@@ -5,29 +5,13 @@
 
 import datetime as dt
 import re
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
-
-from dashboard.components import (
-    aplicar_estilos,
-    aplicar_layout_grafico,
-    card_kpi,
-    card_kpi_ociosidade,
-    format_num,
-    renderizar_cabecalho,
-    renderizar_rodape,
-)
-from dashboard.config import COLUNA_REFERENCIA_STATUS, CORES
-from dashboard.data import (
-    carregar_dados_locais,
-    carregar_solicitacao,
-    integrar_bases,
-    preparar_base_principal,
-)
-from dashboard.filters import renderizar_sidebar
 
 # ============================================================
 # CONFIGURAÇÕES GERAIS E PALETA DE CORES
@@ -39,11 +23,266 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+CORES = {
+    "verde_escuro": "#12372A",
+    "verde": "#2D6A4F",
+    "verde_claro": "#74C69D",
+    "fundo": "#FFFFFF",
+    "card": "#FFFFFF",
+    "texto": "#1F2937",
+    "cinza": "#6B7280",
+    "borda": "#E5E7EB",
+    "alerta": "#F59E0B",
+    "azul": "#2563EB",
+    "vermelho": "#B91C1C",
+}
+
 # ============================================================
 # ESTILIZAÇÃO CSS CUSTOMIZADA
 # ============================================================
 
-aplicar_estilos()
+st.markdown(
+    f"""
+    <style>
+        .block-container {{
+            padding-top: 1.2rem;
+            padding-bottom: 2rem;
+        }}
+
+        .main {{
+            background-color: {CORES["fundo"]};
+        }}
+
+        section[data-testid="stSidebar"] {{
+            background-color: #FFFFFF;
+            border-right: 1px solid {CORES["borda"]};
+        }}
+
+        .hero {{
+            background: linear-gradient(135deg, #12372A 0%, #2D6A4F 60%, #40916C 100%);
+            padding: 28px 32px;
+            border-radius: 24px;
+            color: white;
+            margin-bottom: 22px;
+            box-shadow: 0 12px 30px rgba(18, 55, 42, 0.18);
+        }}
+
+        .hero-title {{
+            font-size: 34px;
+            font-weight: 800;
+            margin-bottom: 6px;
+        }}
+
+        .hero-subtitle {{
+            font-size: 15px;
+            color: #E8F5E9;
+        }}
+
+        .kpi-card {{
+            background-color: white;
+            border-radius: 20px;
+            padding: 20px 22px;
+            border: 1px solid {CORES["borda"]};
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+            min-height: 125px;
+        }}
+
+        .kpi-label {{
+            font-size: 14px;
+            color: {CORES["cinza"]};
+            font-weight: 600;
+            margin-bottom: 8px;
+        }}
+
+        .kpi-value {{
+            font-size: 30px;
+            color: {CORES["verde_escuro"]};
+            font-weight: 800;
+            margin-bottom: 4px;
+        }}
+
+        .kpi-help {{
+            font-size: 13px;
+            color: {CORES["cinza"]};
+        }}
+
+        .kpi-card-ociosidade {{
+            background-color: white;
+            border-radius: 20px;
+            padding: 20px 22px;
+            border: 1px dashed {CORES["borda"]};
+            box-shadow: none;
+            min-height: 125px;
+        }}
+
+        .kpi-value-ociosidade {{
+            font-size: 30px;
+            color: {CORES["verde_escuro"]};
+            font-weight: 800;
+            margin-bottom: 4px;
+        }}
+
+        .section-card {{
+            background-color: white;
+            padding: 22px;
+            border-radius: 22px;
+            border: 1px solid {CORES["borda"]};
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+            margin-bottom: 18px;
+        }}
+
+        div[data-testid="stMetricValue"] {{
+            font-size: 28px;
+            font-weight: 800;
+            color: {CORES["verde_escuro"]};
+        }}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# ============================================================
+# FUNÇÕES UTILITÁRIAS
+# ============================================================
+
+
+def format_num(valor: float) -> str:
+    return f"{valor:,.0f}".replace(",", ".")
+
+
+def card_kpi(titulo, valor, detalhe):
+    st.markdown(
+        f"""
+        <div class="kpi-card">
+            <div class="kpi-label">{titulo}</div>
+            <div class="kpi-value">{valor}</div>
+            <div class="kpi-help">{detalhe}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def card_kpi_ociosidade(titulo, valor, detalhe):
+    st.markdown(
+        f"""
+        <div class="kpi-card-ociosidade">
+            <div class="kpi-label">{titulo}</div>
+            <div class="kpi-value-ociosidade">{valor}</div>
+            <div class="kpi-help">{detalhe}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def aplicar_layout_grafico(fig, altura=400):
+    fig.update_layout(
+        height=altura,
+        plot_bgcolor="white",
+        paper_bgcolor="white",
+        margin=dict(t=40, b=30, l=20, r=20),
+        font=dict(color=CORES["texto"]),
+    )
+    return fig
+
+
+# ============================================================
+# CARREGAMENTO DOS DADOS COM CACHE
+# ============================================================
+
+padrao_pedido = re.compile(
+    r"^(?P<prefixo>F|PAV)(?P<ano>\d{4})(?P<remessa>\d{3})S$", flags=re.IGNORECASE
+)
+
+
+@st.cache_data(ttl=3600, show_spinner="Carregando planilhas do OneDrive...")
+def carregar_dados_locais():
+    entrada = Path("pedidos")
+
+    if not entrada.exists():
+        return pd.DataFrame()
+
+    planilhas = sorted(entrada.rglob("*.xlsx"))
+    lista_combinada = []
+
+    for planilha in planilhas:
+        match = padrao_pedido.fullmatch(planilha.stem)
+
+        if not match:
+            continue
+
+        prefixo = match.group("prefixo").upper()
+        ano = match.group("ano")
+        remessa = match.group("remessa")
+        tipo = "Fertilidade" if prefixo == "F" else "PAV"
+
+        try:
+            df_temp = pd.read_excel(planilha)
+            df_temp.columns = df_temp.columns.astype(str).str.strip()
+
+            df_temp.insert(0, "Remessa", remessa)
+            df_temp.insert(1, "Ano", ano)
+            df_temp.insert(2, "Tipo", tipo)
+            df_temp.insert(3, "Arquivo_Origem", planilha.name)
+
+            lista_combinada.append(df_temp)
+
+        except PermissionError:
+            st.error(
+                f"O arquivo {planilha.name} está aberto ou bloqueado. Feche o arquivo e atualize os dados"
+            )
+
+        except Exception as e:
+            st.error(f"Erro ao ler a planilha {planilha.name}: {e}")
+
+    if not lista_combinada:
+        return pd.DataFrame()
+
+    return pd.concat(lista_combinada, ignore_index=True)
+
+
+@st.cache_data(ttl=3600, show_spinner="Carregando Dados de Área e Solicitações...")
+def carregar_solicitacao():
+    caminho_solicitacao = Path("atvos_solicitacao2.xlsx")
+    if not caminho_solicitacao.exists():
+        return pd.DataFrame()
+    try:
+        df = pd.read_excel(caminho_solicitacao, sheet_name="tratado")
+        df.columns = df.columns.str.strip()
+
+        # Tratamento de tipos
+        if "remessa_logistica" in df.columns:
+            df["remessa_logistica"] = (
+                pd.to_numeric(df["remessa_logistica"], errors="coerce")
+                .fillna(-1)
+                .astype(int)
+                .astype(str)
+            )
+            df["remessa_logistica"] = df["remessa_logistica"].replace("-1", "")
+        if "unidade" in df.columns:
+            df["unidade"] = df["unidade"].astype(str).str.strip()
+
+        # Tratamento de datas
+        colunas_datas = [
+            "data_inicio_amostragem",
+            "data_conclusao_amostragem",
+            "data_inicio_logistica",
+            "data_conclusao_logistica",
+            "data_inicio_analise",
+            "data_conclusao_analise",
+            "data_inicio_laudo",
+            "data_conclusao_laudo",
+        ]
+        for col in colunas_datas:
+            if col in df.columns:
+                df[col] = pd.to_datetime(df[col], errors="coerce")
+
+        return df
+    except Exception as e:
+        st.error(f"Erro ao carregar solicitações: {e}")
+        return pd.DataFrame()
+
 
 # ============================================================
 # PROCESSAMENTO E TRATAMENTO DA BASE PRINCIPAL
@@ -56,34 +295,110 @@ if df_bruto.empty:
     st.error("Nenhum dado bruto pôde ser carregado da pasta `pedidos`.")
     st.stop()
 
-if COLUNA_REFERENCIA_STATUS not in df_bruto.columns:
+df_fazendas = pd.read_excel("fazendas.xlsx")
+df_fazendas["Nome_Fazenda"] = df_fazendas["Nome_Fazenda"].astype(str).str.strip()
+df_fazendas["Cod_Fazenda"] = pd.to_numeric(
+    df_fazendas["Cod_Fazenda"], errors="coerce"
+).astype("Int64")
+df_fazendas = df_fazendas.drop_duplicates(subset=["Cod_Fazenda", "Nome_Fazenda"])
+
+df_bruto = df_bruto.merge(
+    df_fazendas, how="inner", left_on="Fazenda", right_on="Cod_Fazenda"
+)
+df_bruto["Nome_Fazenda"] = df_bruto["Nome_Fazenda"].str.strip()
+
+col_ref = "Ca_(mmolc/dm3)"
+if col_ref not in df_bruto.columns:
     st.error(
-        f"A coluna de referência '{COLUNA_REFERENCIA_STATUS}' não foi encontrada "
-        "nos dados carregados."
+        f"A coluna de referência '{col_ref}' não foi encontrada nos dados carregados."
     )
     st.stop()
 
-try:
-    df_bruto = preparar_base_principal(df_bruto)
-    df_bruto = integrar_bases(df_bruto, df_solicitacao)
-except KeyError as erro:
-    st.error(f"Não foi possível integrar as bases. Coluna ausente: {erro.args[0]}")
-    st.stop()
+df_bruto["Status"] = df_bruto[col_ref].apply(
+    lambda x: "Concluído" if pd.notna(x) else "Pendente"
+)
 
 
 # ============================================================
 # SIDEBAR (FILTROS GLOBAIS)
 # ============================================================
 
-filtros = renderizar_sidebar(df_bruto)
-df_filtrado = filtros.df_filtrado
-busca_fazenda = filtros.busca_fazenda
-tipos_disponiveis = filtros.tipos_disponiveis
-tipo_select = filtros.tipo_select
-remessas_disponiveis = filtros.remessas_disponiveis
-remessa_select = filtros.remessa_select
-unidades_disponiveis = filtros.unidades_disponiveis
-unidade_select = filtros.unidade_select
+with st.sidebar:
+    logo_path = Path("logo-agrorobotica-png.png")
+    if logo_path.exists():
+        st.image(str(logo_path), width=250)
+
+    st.caption("Filtros gerais")
+
+    if st.button("🔄 Atualizar Dados", use_container_width=True):
+        st.cache_data.clear()
+        st.rerun()
+
+    st.divider()
+
+    busca_fazenda = st.text_input(
+        "Busca por Fazenda",
+        placeholder="Ex: 420136",
+        help="Pesquise utilizando o código da fazenda",
+    )
+
+    df_filtrado = df_bruto.copy()
+
+    if busca_fazenda:
+        termos = [
+            re.escape(t.strip().lower())
+            for t in re.split(r"[,;\s]+", busca_fazenda)
+            if t.strip()
+        ]
+        if termos:
+            padrao_regex = "|".join(termos)
+            mask_cod = (
+                df_filtrado["Fazenda"]
+                .astype(str)
+                .str.lower()
+                .str.contains(padrao_regex, na=False, regex=True)
+            )
+            df_filtrado = df_filtrado[mask_cod]
+
+    anos_disponiveis = sorted(df_filtrado["Ano"].dropna().unique())
+    ano_select = st.multiselect(
+        "Ano", options=anos_disponiveis, default=anos_disponiveis
+    )
+    if ano_select:
+        df_filtrado = df_filtrado[df_filtrado["Ano"].isin(ano_select)]
+
+    tipos_disponiveis = (
+        sorted(df_filtrado["Tipo"].unique())
+        if "Tipo" in df_filtrado.columns
+        else ["Geral"]
+    )
+    tipo_select = st.multiselect(
+        "Tipo de Análise", options=tipos_disponiveis, default=tipos_disponiveis
+    )
+    if tipo_select:
+        df_filtrado = df_filtrado[df_filtrado["Tipo"].isin(tipo_select)]
+
+    remessas_disponiveis = (
+        sorted(df_filtrado["Remessa"].unique())
+        if "Remessa" in df_filtrado.columns
+        else []
+    )
+    remessa_select = st.multiselect(
+        "Remessas", options=remessas_disponiveis, default=remessas_disponiveis
+    )
+    if remessa_select:
+        df_filtrado = df_filtrado[df_filtrado["Remessa"].isin(remessa_select)]
+
+    unidades_disponiveis = (
+        sorted(df_filtrado["Unidade"].unique())
+        if "Unidade" in df_filtrado.columns
+        else []
+    )
+    unidade_select = st.multiselect(
+        "Unidades", options=unidades_disponiveis, default=unidades_disponiveis
+    )
+    if unidade_select:
+        df_filtrado = df_filtrado[df_filtrado["Unidade"].isin(unidade_select)]
 
 
 # ============================================================
@@ -91,7 +406,18 @@ unidade_select = filtros.unidade_select
 # ============================================================
 
 hora_brasilia = dt.datetime.now(ZoneInfo("America/Sao_Paulo"))
-renderizar_cabecalho(hora_brasilia)
+st.markdown(
+    f"""
+    <div class="hero">
+        <div class="hero-title">Monitoramento de Entregas — ATVOS</div>
+        <div class="hero-subtitle">
+            Acompanhamento do quantitativo de amostras, status de conclusão e áreas mapeadas | 
+            Atualizado em {hora_brasilia.strftime("%d/%m/%Y %H:%M")}
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 # ============================================================
@@ -200,7 +526,9 @@ with tab_geral:
                     yanchor="bottom",
                 )
 
-            st.plotly_chart(aplicar_layout_grafico(fig_remessa, 420), width="stretch")
+            st.plotly_chart(
+                aplicar_layout_grafico(fig_remessa, 420), use_container_width=True
+            )
 
         with col_graf2:
             df_graf_unidade = (
@@ -228,7 +556,9 @@ with tab_geral:
                 separators=",.",
                 yaxis_tickformat=",d",
             )
-            st.plotly_chart(aplicar_layout_grafico(fig_unidade, 420), width="stretch")
+            st.plotly_chart(
+                aplicar_layout_grafico(fig_unidade, 420), use_container_width=True
+            )
 
         st.divider()
 
@@ -290,7 +620,7 @@ with tab_geral:
                                 "Remessa": st.column_config.TextColumn("Remessa"),
                             },
                             hide_index=True,
-                            width="stretch",
+                            use_container_width=True,
                         )
 
         # ============================================================
@@ -354,7 +684,7 @@ with tab_geral:
                         df_detalhe_talhao,
                         column_config=cols_config,
                         hide_index=True,
-                        width="stretch",
+                        use_container_width=True,
                     )
                 else:
                     st.warning(
@@ -704,7 +1034,9 @@ with tab_prazos_area:
                 )
                 fig_evo.update_yaxes(tickformat=".0f")
 
-                st.plotly_chart(aplicar_layout_grafico(fig_evo, 450), width="stretch")
+                st.plotly_chart(
+                    aplicar_layout_grafico(fig_evo, 450), use_container_width=True
+                )
 
         else:
             st.warning(
@@ -716,4 +1048,13 @@ with tab_planejamento:
 # ============================================================
 # RODAPÉ
 # ============================================================
-renderizar_rodape()
+st.divider()
+
+st.markdown(
+    """
+    <div style="text-align: center; color: #6B7280; font-size: 14px;">
+        © 2026 Agrorobótica - Monitoramento de Entregas ATVOS
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
