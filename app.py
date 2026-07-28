@@ -273,11 +273,11 @@ def carregar_solicitacao():
 df_bruto = carregar_dados_locais()
 
 if df_bruto.empty:
-    st.error("Nenhum dado bruto pôde ser carregado da pasta `pedidos`.")
+    st.error("Nenhum dado bruto pôde ser carregado da pasta `pedidos`.")s
     st.stop()
 
 df_fazendas = pd.read_excel("fazendas.xlsx")
-df_fazendas["Nome_Fazenda"] = df_fazendas["Nome_Fazenda"].str.strip()
+df_fazendas["Nome_Fazenda"] = df_fazendas["Nome_Fazenda"].astype(str).str.strip()
 df_fazendas = df_fazendas.drop_duplicates(subset=["Cod_Fazenda", "Nome_Fazenda"])
 
 df_bruto = (
