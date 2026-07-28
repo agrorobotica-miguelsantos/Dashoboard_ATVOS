@@ -278,6 +278,7 @@ if df_bruto.empty:
 
 df_fazendas = pd.read_excel("fazendas.xlsx")
 df_fazendas["Nome_Fazenda"] = df_fazendas["Nome_Fazenda"].astype(str).str.strip()
+df_fazendas["Cod_Fazenda"] = pd.to_numeric(df_fazendas["Cod_Fazenda"], errors="coerce").astype("Int64")
 df_fazendas = df_fazendas.drop_duplicates(subset=["Cod_Fazenda", "Nome_Fazenda"])
 
 df_bruto = (
