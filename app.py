@@ -274,7 +274,7 @@ df_fazendas = df_fazendas.drop_duplicates(subset=["Cod_Fazenda", "Nome_Fazenda"]
 
 df_bruto = (
     df_bruto
-    .merge(df_fazendas, how='inner', left_on='Fazenda', right_on='Cod_Fazenda', validate='many_to_one', indicator=True)
+    .merge(df_fazendas, how='inner', left_on='Fazenda', right_on='Cod_Fazenda')
 )
 df_bruto['Nome_Fazenda'] = df_bruto['Nome_Fazenda'].str.strip()
 
