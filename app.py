@@ -759,6 +759,7 @@ with tab_prazos_area:
             # ============================================================
             # 1. CÁLCULO DE ÁREAS GERAIS
             # ============================================================
+            df_sol_filtrado = df_sol_filtrado[df_sol_filtrado["status_geral"].fillna("").str.strip().str.casefold() != "cancelado"].copy()
             area_total = df_sol_filtrado["area_ha"].sum()
             area_amostrada = (
                 df_sol_filtrado.loc[
