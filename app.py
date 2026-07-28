@@ -187,45 +187,53 @@ def aplicar_layout_grafico(fig, altura=400):
 # CARREGAMENTO DOS DADOS COM CACHE
 # ============================================================
 
+padrao_pedido = re.compile(
+    r"^(?P<prefixo>F|PAV)(?P<ano>\d{4})(?P<remessa>\d{3})S$",
+    flags=re.IGNORECASE
+)
+
 @st.cache_data(ttl=3600, show_spinner="Carregando planilhas do OneDrive...")
 def carregar_dados_locais():
     entrada = Path("pedidos")
+
     if not entrada.exists():
         return pd.DataFrame()
 
-    planilhas_fertilidade = list(entrada.rglob("F2026*S.xlsx"))
-    planilhas_pav = list(entrada.rglob("PAV2026*S.xlsx"))
+    planilhas = sorted(entrada.rglob("*.xlsx"))
     lista_combinada = []
 
-    # Processamento Fertilidade
-    for planilha in planilhas_fertilidade:
-        try:
-            df_temp = pd.read_excel(planilha)
-            remessa = re.search(r"(?<=F2026)(\d{3})", str(planilha.stem)).group(0)
-            df_temp.insert(0, "Remessa", str(remessa))
-            df_temp.insert(1, "Tipo", "Fertilidade")
-            df_temp.columns = df_temp.columns.str.strip()
-            lista_combinada.append(df_temp)
-        except Exception as e:
-            st.error(f"Erro ao ler a planilha {planilha.name}: {e}")
+    for planilha in planilhas:
+        match = padrao_pedido.fullmatch(planilha.stem)
 
-    # Processamento PAV
-    for planilha in planilhas_pav:
+        if not match:
+            continue
+
+        prefixo = match.group("prefixo").upper()
+        ano = match.group("ano")
+        remessa = match.group("remessa")
+        tipo = "Fertilidade" if prefixo == "F" else "PAV"
+
         try:
             df_temp = pd.read_excel(planilha)
-            remessa = re.search(r"(?<=PAV2026)(\d{3})", str(planilha.stem)).group(0)
-            df_temp.insert(0, "Remessa", str(remessa))
-            df_temp.insert(1, "Tipo", "PAV")
-            df_temp.columns = df_temp.columns.str.strip()
-            lista_combinada.append(df_temp)
+            df_temp.columns = df_temp.columns.astype(str).str.strip()
+
+            df_temp.insert(0, "Remessa", remessa)
+            df_temp.insert(1, "Ano", ano)
+            df_temp.insert(2, "Tipo", tipo)
+            df_temp.insert(3, "Arquivo_Origem", planilha.name)
+
+            lista_combinada.appedn(df_temp)
+
+        except PermissionError:
+            st.error(f"O arquivo {planilha.name} está aberto ou bloqueado. Feche o arquivo e atualize os dados")
+
         except Exception as e:
             st.error(f"Erro ao ler a planilha {planilha.name}: {e}")
 
     if not lista_combinada:
         return pd.DataFrame()
-        
-    return pd.concat(lista_combinada, ignore_index=True)
 
+    return pd.concat(lista_combinada, ignore_index=True)
 
 @st.cache_data(ttl=3600, show_spinner="Carregando Dados de Área e Solicitações...")
 def carregar_solicitacao():
