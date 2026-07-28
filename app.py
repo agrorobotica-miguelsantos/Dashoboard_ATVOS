@@ -289,6 +289,7 @@ def carregar_solicitacao():
 # ============================================================
 
 df_bruto = carregar_dados_locais()
+df_solicitacao = carregar_solicitacao()
 
 if df_bruto.empty:
     st.error("Nenhum dado bruto pôde ser carregado da pasta `pedidos`.")
@@ -700,8 +701,6 @@ with tab_geral:
 
 
 with tab_prazos_area:
-    df_solicitacao = carregar_solicitacao()
-
     if not df_solicitacao.empty:
         df_sol_filtrado = df_solicitacao.copy()
 
