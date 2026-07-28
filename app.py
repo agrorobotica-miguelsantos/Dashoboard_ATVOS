@@ -328,6 +328,13 @@ with st.sidebar:
             mask_cod = df_filtrado["Fazenda"].astype(str).str.lower().str.contains(padrao_regex, na=False, regex=True)
             df_filtrado = df_filtrado[mask_cod]
 
+    anos_disponiveis = sorted(df_filtrado["Ano"].dropna().unique())
+    ano_select = st.multiselect(
+        "Ano", options=anos_disponiveis, default=anos_disponiveis
+    )
+    if ano_select:
+        df_filtrado = df_filtrado[df_filtrado["Ano"].isin(ano_select)]
+
     tipos_disponiveis = sorted(df_filtrado["Tipo"].unique()) if "Tipo" in df_filtrado.columns else ["Geral"]
     tipo_select = st.multiselect(
         "Tipo de Análise", options=tipos_disponiveis, default=tipos_disponiveis
