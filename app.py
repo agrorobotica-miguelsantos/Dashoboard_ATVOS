@@ -24,22 +24,35 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+st.set_option("client.toolbarMode", "minimal")
+
 st.html("""
 <style>
+    header[data-testid="stHeader"] {
+        display: none !important;
+    }
+
     [data-testid="stToolbar"] {
         display: none !important;
     }
+
+    [data-testid="stToolbarActions"] {
+        display: none !important;
+    }
+
+    [data-testid="stMainMenu"] {
+        display: none !important;
+    }
+
+    .stAppViewContainer {
+        margin-top: 0 !important;
+    }
+
+    .block-container {
+        padding-top: 1rem !important;
+    }
 </style>
 """)
-
-hide_menu_style = """
-    <style>
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
-    </style>
-"""
-st.markdown(hide_menu_style, unsafe_allow_html=True)
 
 CORES = {
     "verde_escuro": "#12372A",

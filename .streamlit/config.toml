@@ -14,4 +14,3 @@ gatherUsageStats = false
 
 [client]
 showErrorDetails = false
-toolbraMode = "minimal"
