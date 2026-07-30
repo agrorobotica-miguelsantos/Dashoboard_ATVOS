@@ -13,19 +13,14 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-hide_profile_footer = """
+hide_menu_style = """
     <style>
-    /* Oculta o botão de perfil/Manage App e o container flutuante */
-    div[class^="st-emotion-cache-"], div[data-testid="stActionButton"] {
-        display: none !important;
-    }
-    /* Alvo alternativo para garantir a remoção em diferentes versões */
-    [data-testid="stManageAppButton"] {
-        display: none !important;
-    }
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
     </style>
 """
-st.markdown(hide_profile_footer, unsafe_allow_html=True)
+st.markdown(hide_menu_style, unsafe_allow_html=True)
 
 # ============================================================
 # CONFIGURAÇÕES GERAIS E PALETA DE CORES
