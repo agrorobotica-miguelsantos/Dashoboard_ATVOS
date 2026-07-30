@@ -24,6 +24,14 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+st.html("""
+<style>
+    [data-testid="stToolbar"] {
+        display: none !important;
+    }
+</style>
+""")
+
 hide_menu_style = """
     <style>
     #MainMenu {visibility: hidden;}
