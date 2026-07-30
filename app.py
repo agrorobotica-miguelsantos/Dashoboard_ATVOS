@@ -13,12 +13,14 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-hide_footer_style = """
+hide_menu_style = """
     <style>
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
     footer {visibility: hidden;}
     </style>
 """
-st.markdown(hide_footer_style, unsafe_allow_html=True)
+st.markdown(hide_menu_style, unsafe_allow_html=True)
 
 # ============================================================
 # CONFIGURAÇÕES GERAIS E PALETA DE CORES
