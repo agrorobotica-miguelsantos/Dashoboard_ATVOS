@@ -32,6 +32,14 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
+st.html("""
+<style>
+    footer {
+        display: none !important;
+    }
+</style>
+""")
+
 CORES = {
     "verde_escuro": "#12372A",
     "verde": "#2D6A4F",
