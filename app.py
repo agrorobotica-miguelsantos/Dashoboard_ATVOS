@@ -13,14 +13,6 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-hide_menu_style = """
-    <style>
-    #MainMenu {visibility: hidden;}
-    header {visibility: hidden;}
-    footer {visibility: hidden;}
-    </style>
-"""
-st.markdown(hide_menu_style, unsafe_allow_html=True)
 
 # ============================================================
 # CONFIGURAÇÕES GERAIS E PALETA DE CORES
@@ -32,13 +24,14 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-st.html("""
-<style>
-    footer {
-        display: none !important;
-    }
-</style>
-""")
+hide_menu_style = """
+    <style>
+    #MainMenu {visibility: hidden;}
+    header {visibility: hidden;}
+    footer {visibility: hidden;}
+    </style>
+"""
+st.markdown(hide_menu_style, unsafe_allow_html=True)
 
 CORES = {
     "verde_escuro": "#12372A",
