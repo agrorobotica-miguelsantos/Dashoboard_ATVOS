@@ -13,6 +13,13 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
+hide_footer_style = """
+    <style>
+    footer {visibility: hidden;}
+    </style>
+"""
+st.markdown(hide_footer_style, unsafe_allow_html=True)
+
 # ============================================================
 # CONFIGURAÇÕES GERAIS E PALETA DE CORES
 # ============================================================
@@ -261,7 +268,7 @@ def carregar_solicitacao():
             )
             df["remessa_logistica"] = df["remessa_logistica"].replace("-1", "")
         if "unidade" in df.columns:
-            df["unidade"] = df["unidade"].astype(str).str.strip()
+            df["unidade"] = df["unidade"].astype("string").str.strip()
 
         # Tratamento de datas
         colunas_datas = [
@@ -624,80 +631,354 @@ with tab_geral:
                         )
 
         # ============================================================
-        # DRILL-DOWN Fazenda-Talhão
+        # DRILL-DOWN Unidade > Fazenda > Talhão > Amostra
         # ============================================================
         st.divider()
-        st.markdown("### Detalhamento por Talhão")
+        st.markdown("### Detalhamento Operacional")
         st.caption(
-            "Insira o código de uma fazenda para investigar o status e os dados de área ao nível de talhão."
+            "Navegue da unidade até as amostras individuais e localize rapidamente "
+            "os talhões que ainda possuem pendências."
         )
 
-        codigo_padrao = ""
-        if busca_fazenda:
-            termos_busca = [
-                t.strip() for t in re.split(r"[,;\s]+", busca_fazenda) if t.strip()
-            ]
-            if termos_busca:
-                codigo_padrao = termos_busca[0]
-
-        fzd_codigo_input = st.text_input(
-            "Digite o Código da Fazenda:",
-            value=codigo_padrao,
-            placeholder="Ex: 420136",
-            help="Digite o código numérico da fazenda para listar seus talhões",
-            key="txt_talhao_drilldown",
-        )
-
-        if fzd_codigo_input:
-            df_talhao_fzd = df_filtrado[
-                df_filtrado[col_cod_fazenda].astype(str) == fzd_codigo_input.strip()
-            ]
-
-            if not df_talhao_fzd.empty:
-                nome_fzd_encontrado = df_talhao_fzd[col_nome_fazenda].iloc[0]
-                unidade_fzd = df_talhao_fzd["Unidade"].iloc[0]
-
-                st.markdown(
-                    f"**Fazenda Localizada:** `{fzd_codigo_input}` - **{nome_fzd_encontrado}** (Unidade: **{unidade_fzd}**)"
-                )
-
-                cols_agrup_talhao = []
-                cols_config = {}
-
-                if "Talhão" in df_talhao_fzd.columns:
-                    cols_agrup_talhao.append("Talhão")
-                    cols_config["Talhão"] = st.column_config.TextColumn("Talhão")
-                if "Tipo" in df_talhao_fzd.columns:
-                    cols_agrup_talhao.append("Tipo")
-                    cols_config["Tipo"] = st.column_config.TextColumn("Tipo")
-                if "Status" in df_talhao_fzd.columns:
-                    cols_agrup_talhao.append("Status")
-                    cols_config["Status"] = st.column_config.TextColumn("Status")
-
-                if "Talhão" in df_talhao_fzd.columns:
-                    df_detalhe_talhao = (
-                        df_talhao_fzd[cols_agrup_talhao]
-                        .drop_duplicates()
-                        .sort_values(by="Talhão")
-                    )
-                    st.dataframe(
-                        df_detalhe_talhao,
-                        column_config=cols_config,
-                        hide_index=True,
-                        use_container_width=True,
-                    )
-                else:
-                    st.warning(
-                        "A coluna de detalhe 'Talhão' não foi encontrada no arquivo carregado."
-                    )
-            else:
-                st.error(
-                    f"Nenhuma fazenda encontrada com o código `{fzd_codigo_input}` nos filtros atuais."
-                )
+        if "Unidade" not in df_filtrado.columns:
+            st.warning("A coluna 'Unidade' não foi encontrada nos dados carregados.")
+        elif "Fazenda" not in df_filtrado.columns:
+            st.warning("A coluna 'Fazenda' não foi encontrada nos dados carregados.")
+        elif "Talhão" not in df_filtrado.columns:
+            st.warning("A coluna 'Talhão' não foi encontrada nos dados carregados.")
         else:
-            st.info(
-                "Digite o código de uma fazenda acima (ou utilize o filtro da barra lateral) para carregar os talhões."
+            unidades_drill = sorted(
+                df_filtrado["Unidade"].dropna().astype(str).unique().tolist()
             )
+
+            if not unidades_drill:
+                st.info("Nenhuma unidade disponível nos filtros atuais.")
+            else:
+                col_drill1, col_drill2, col_drill3, col_drill4 = st.columns(
+                    [1.0, 2.2, 1.1, 1.3]
+                )
+
+                with col_drill1:
+                    unidade_drill = st.selectbox(
+                        "Unidade",
+                        options=unidades_drill,
+                        key="drill_unidade",
+                    )
+
+                df_drill_unidade = df_filtrado[
+                    df_filtrado["Unidade"].astype(str) == unidade_drill
+                ].copy()
+
+                fazendas_drill = (
+                    df_drill_unidade[[col_cod_fazenda, col_nome_fazenda]]
+                    .dropna(subset=[col_cod_fazenda])
+                    .drop_duplicates(subset=[col_cod_fazenda])
+                    .copy()
+                )
+                fazendas_drill["codigo_texto"] = fazendas_drill[
+                    col_cod_fazenda
+                ].map(
+                    lambda valor: (
+                        str(int(valor))
+                        if isinstance(valor, (int, float)) and float(valor).is_integer()
+                        else str(valor)
+                    )
+                )
+                fazendas_drill["nome_texto"] = (
+                    fazendas_drill[col_nome_fazenda]
+                    .fillna("Fazenda sem descrição")
+                    .astype(str)
+                    .str.strip()
+                )
+                fazendas_drill["rotulo"] = (
+                    fazendas_drill["codigo_texto"]
+                    + " — "
+                    + fazendas_drill["nome_texto"]
+                )
+                fazendas_drill = fazendas_drill.sort_values(
+                    ["nome_texto", "codigo_texto"]
+                )
+
+                opcoes_fazenda = fazendas_drill["rotulo"].tolist()
+                indice_fazenda = 0
+                if busca_fazenda and opcoes_fazenda:
+                    termos_busca = [
+                        termo.strip()
+                        for termo in re.split(r"[,;\s]+", busca_fazenda)
+                        if termo.strip()
+                    ]
+                    if termos_busca:
+                        codigo_busca = termos_busca[0]
+                        indices_encontrados = fazendas_drill.index[
+                            fazendas_drill["codigo_texto"] == codigo_busca
+                        ].tolist()
+                        if indices_encontrados:
+                            rotulo_encontrado = fazendas_drill.loc[
+                                indices_encontrados[0], "rotulo"
+                            ]
+                            indice_fazenda = opcoes_fazenda.index(rotulo_encontrado)
+
+                with col_drill2:
+                    fazenda_drill = st.selectbox(
+                        "Fazenda",
+                        options=opcoes_fazenda,
+                        index=indice_fazenda if opcoes_fazenda else None,
+                        placeholder="Selecione uma fazenda",
+                        key="drill_fazenda",
+                    )
+
+                if fazenda_drill:
+                    registro_fazenda = fazendas_drill[
+                        fazendas_drill["rotulo"] == fazenda_drill
+                    ].iloc[0]
+                    codigo_fazenda_drill = registro_fazenda[col_cod_fazenda]
+                    codigo_fazenda_texto = registro_fazenda["codigo_texto"]
+                    nome_fazenda_drill = registro_fazenda["nome_texto"]
+
+                    df_drill_fazenda = df_drill_unidade[
+                        df_drill_unidade[col_cod_fazenda] == codigo_fazenda_drill
+                    ].copy()
+
+                    tipos_drill = (
+                        sorted(
+                            df_drill_fazenda["Tipo"]
+                            .dropna()
+                            .astype(str)
+                            .unique()
+                            .tolist()
+                        )
+                        if "Tipo" in df_drill_fazenda.columns
+                        else []
+                    )
+
+                    with col_drill3:
+                        tipo_drill = st.selectbox(
+                            "Tipo",
+                            options=["Todos"] + tipos_drill,
+                            key="drill_tipo",
+                        )
+
+                    with col_drill4:
+                        somente_pendentes_drill = st.toggle(
+                            "Somente pendentes",
+                            value=False,
+                            key="drill_somente_pendentes",
+                        )
+
+                    if tipo_drill != "Todos" and "Tipo" in df_drill_fazenda.columns:
+                        df_drill_fazenda = df_drill_fazenda[
+                            df_drill_fazenda["Tipo"].astype(str) == tipo_drill
+                        ].copy()
+
+                    total_fazenda = len(df_drill_fazenda)
+                    entregues_fazenda = (
+                        df_drill_fazenda["Status"] == "Concluído"
+                    ).sum()
+                    pendentes_fazenda = (
+                        df_drill_fazenda["Status"] == "Pendente"
+                    ).sum()
+                    progresso_fazenda = (
+                        entregues_fazenda / total_fazenda
+                        if total_fazenda > 0
+                        else 0
+                    )
+
+                    st.markdown(
+                        f"**{codigo_fazenda_texto} — {nome_fazenda_drill}** "
+                        f"· Unidade **{unidade_drill}**"
+                    )
+
+                    c_drill1, c_drill2, c_drill3, c_drill4 = st.columns(4)
+                    with c_drill1:
+                        card_kpi(
+                            "Total da fazenda",
+                            f"{format_num(total_fazenda)} un",
+                            "Amostras nos filtros atuais",
+                        )
+                    with c_drill2:
+                        card_kpi(
+                            "Entregues",
+                            f"{format_num(entregues_fazenda)} un",
+                            f"{progresso_fazenda:.1%} concluído",
+                        )
+                    with c_drill3:
+                        card_kpi(
+                            "Pendentes",
+                            f"{format_num(pendentes_fazenda)} un",
+                            f"{(1 - progresso_fazenda):.1%} em aberto",
+                        )
+                    with c_drill4:
+                        card_kpi(
+                            "Progresso",
+                            f"{progresso_fazenda:.1%}",
+                            "Percentual entregue",
+                        )
+
+                    df_drill_fazenda["Talhão_drill"] = (
+                        df_drill_fazenda["Talhão"]
+                        .astype("string")
+                        .fillna("Sem talhão")
+                    )
+                    if "Tipo" in df_drill_fazenda.columns:
+                        df_drill_fazenda["Tipo_drill"] = (
+                            df_drill_fazenda["Tipo"]
+                            .astype("string")
+                            .fillna("Sem tipo")
+                        )
+                    else:
+                        df_drill_fazenda["Tipo_drill"] = "Sem tipo"
+
+                    resumo_talhoes = (
+                        df_drill_fazenda.groupby(
+                            ["Talhão_drill", "Tipo_drill"],
+                            as_index=False,
+                        )
+                        .agg(
+                            Total=("Status", "size"),
+                            Entregues=(
+                                "Status",
+                                lambda valores: (valores == "Concluído").sum(),
+                            ),
+                            Pendentes=(
+                                "Status",
+                                lambda valores: (valores == "Pendente").sum(),
+                            ),
+                        )
+                    )
+                    resumo_talhoes["Progresso"] = (
+                        resumo_talhoes["Entregues"] / resumo_talhoes["Total"]
+                    ) * 100
+                    resumo_talhoes = resumo_talhoes.rename(
+                        columns={
+                            "Talhão_drill": "Talhão",
+                            "Tipo_drill": "Tipo",
+                        }
+                    )
+
+                    if somente_pendentes_drill:
+                        resumo_talhoes = resumo_talhoes[
+                            resumo_talhoes["Pendentes"] > 0
+                        ].copy()
+
+                    resumo_talhoes = resumo_talhoes.sort_values(
+                        ["Pendentes", "Progresso", "Total"],
+                        ascending=[False, True, False],
+                    ).reset_index(drop=True)
+
+                    st.markdown("##### Progresso por talhão")
+                    st.caption(
+                        "Selecione uma linha para abrir as amostras daquele talhão."
+                    )
+
+                    if resumo_talhoes.empty:
+                        st.success(
+                            "Não existem talhões pendentes para os filtros selecionados."
+                        )
+                    else:
+                        selecao_talhao = st.dataframe(
+                            resumo_talhoes,
+                            column_config={
+                                "Talhão": st.column_config.TextColumn("Talhão"),
+                                "Tipo": st.column_config.TextColumn("Tipo"),
+                                "Total": st.column_config.NumberColumn("Total"),
+                                "Entregues": st.column_config.NumberColumn(
+                                    "✅ Entregues"
+                                ),
+                                "Pendentes": st.column_config.NumberColumn(
+                                    "⏳ Pendentes"
+                                ),
+                                "Progresso": st.column_config.ProgressColumn(
+                                    "% Conclusão",
+                                    format="%.1f %%",
+                                    min_value=0,
+                                    max_value=100,
+                                ),
+                            },
+                            hide_index=True,
+                            use_container_width=True,
+                            on_select="rerun",
+                            selection_mode="single-row",
+                            key="drill_tabela_talhoes",
+                        )
+
+                        linhas_selecionadas = selecao_talhao.selection.rows
+                        if linhas_selecionadas:
+                            linha_talhao = resumo_talhoes.iloc[
+                                linhas_selecionadas[0]
+                            ]
+                            talhao_selecionado = str(linha_talhao["Talhão"])
+                            tipo_talhao_selecionado = str(linha_talhao["Tipo"])
+
+                            df_amostras_talhao = df_drill_fazenda[
+                                (
+                                    df_drill_fazenda["Talhão_drill"].astype(str)
+                                    == talhao_selecionado
+                                )
+                                & (
+                                    df_drill_fazenda["Tipo_drill"].astype(str)
+                                    == tipo_talhao_selecionado
+                                )
+                            ].copy()
+
+                            if somente_pendentes_drill:
+                                df_amostras_talhao = df_amostras_talhao[
+                                    df_amostras_talhao["Status"] == "Pendente"
+                                ].copy()
+
+                            st.markdown(
+                                f"##### Amostras do talhão {talhao_selecionado}"
+                            )
+
+                            colunas_amostras = [
+                                "QR-Code",
+                                "Remessa",
+                                "Ponto",
+                                "Profundidade",
+                                "Status"
+                            ]
+                            colunas_amostras = [
+                                coluna
+                                for coluna in colunas_amostras
+                                if coluna in df_amostras_talhao.columns
+                            ]
+                            df_amostras_exibicao = df_amostras_talhao[
+                                colunas_amostras
+                            ].copy()
+
+                            st.dataframe(
+                                df_amostras_exibicao,
+                                hide_index=True,
+                                use_container_width=True,
+                                column_config={
+                                    "Data": st.column_config.DateColumn(
+                                        "Data", format="DD/MM/YYYY"
+                                    ),
+                                    "Data_Emissao": st.column_config.DateColumn(
+                                        "Data de emissão", format="DD/MM/YYYY"
+                                    ),
+                                },
+                            )
+
+                            csv_amostras = df_amostras_exibicao.to_csv(
+                                index=False,
+                                sep=";",
+                                decimal=",",
+                            ).encode("utf-8-sig")
+                            st.download_button(
+                                "Baixar amostras do talhão",
+                                data=csv_amostras,
+                                file_name=(
+                                    f"amostras_{codigo_fazenda_texto}_"
+                                    f"talhao_{talhao_selecionado}.csv"
+                                ),
+                                mime="text/csv",
+                                key="download_amostras_talhao",
+                            )
+                        else:
+                            st.info(
+                                "Selecione um talhão na tabela para visualizar "
+                                "as amostras individuais."
+                            )
 
 
 with tab_prazos_area:
@@ -1045,7 +1326,481 @@ with tab_prazos_area:
             )
 
 with tab_planejamento:
-    st.title("Página em construção")
+    st.markdown("###### Planejamento e Backlog")
+    st.caption(
+        "Visão das áreas ativas ainda não entregues, organizada pela etapa real do processo."
+    )
+
+    if df_solicitacao.empty:
+        st.warning("Não há dados de solicitações disponíveis para o planejamento.")
+    else:
+        df_plan = df_solicitacao.copy()
+
+        # Mantém os filtros globais também na visão de planejamento.
+        if busca_fazenda and "cod_fazenda" in df_plan.columns:
+            termos = [
+                re.escape(t.strip().lower())
+                for t in re.split(r"[,;\s]+", busca_fazenda)
+                if t.strip()
+            ]
+            if termos:
+                padrao_regex = "|".join(termos)
+                mask_cod_plan = (
+                    df_plan["cod_fazenda"]
+                    .astype(str)
+                    .str.lower()
+                    .str.contains(padrao_regex, na=False, regex=True)
+                )
+                df_plan = df_plan[mask_cod_plan]
+
+        if (
+            ano_select
+            and len(ano_select) < len(anos_disponiveis)
+            and "data_solicitacao" in df_plan.columns
+        ):
+            anos_plan = pd.to_numeric(pd.Series(ano_select), errors="coerce").dropna()
+            datas_solicitacao = pd.to_datetime(
+                df_plan["data_solicitacao"], errors="coerce"
+            )
+            df_plan = df_plan[datas_solicitacao.dt.year.isin(anos_plan.astype(int))]
+
+        if (
+            tipo_select
+            and len(tipo_select) < len(tipos_disponiveis)
+            and "tipo_amostra" in df_plan.columns
+        ):
+            df_plan = df_plan[df_plan["tipo_amostra"].isin(tipo_select)]
+
+        if (
+            remessa_select
+            and len(remessa_select) < len(remessas_disponiveis)
+            and "remessa_logistica" in df_plan.columns
+        ):
+            remessas_plan = [
+                str(int(r)) if str(r).isdigit() else str(r) for r in remessa_select
+            ]
+            remessa_base = (
+                pd.to_numeric(df_plan["remessa_logistica"], errors="coerce")
+                .astype("Int64")
+                .astype(str)
+            )
+            df_plan = df_plan[remessa_base.isin(remessas_plan)]
+
+        if (
+            unidade_select
+            and len(unidade_select) < len(unidades_disponiveis)
+            and "unidade" in df_plan.columns
+        ):
+            unidades_plan = [str(u).strip() for u in unidade_select]
+            df_plan = df_plan[
+                df_plan["unidade"].astype(str).str.strip().isin(unidades_plan)
+            ]
+
+        if "status_geral" in df_plan.columns:
+            mask_cancelado = (
+                df_plan["status_geral"]
+                .fillna("")
+                .astype(str)
+                .str.strip()
+                .str.casefold()
+                .eq("cancelado")
+            )
+            df_plan = df_plan[~mask_cancelado].copy()
+
+        if "area_ha" not in df_plan.columns:
+            st.warning(
+                "A coluna de área ('area_ha') não foi encontrada nas solicitações."
+            )
+        else:
+            df_plan["area_ha"] = pd.to_numeric(
+                df_plan["area_ha"], errors="coerce"
+            )
+
+            colunas_datas_plan = [
+                "data_solicitacao",
+                "data_conclusao_amostragem",
+                "data_conclusao_logistica",
+                "data_conclusao_analise",
+                "data_conclusao_laudo",
+            ]
+            for coluna in colunas_datas_plan:
+                if coluna not in df_plan.columns:
+                    df_plan[coluna] = pd.NaT
+                else:
+                    df_plan[coluna] = pd.to_datetime(
+                        df_plan[coluna], errors="coerce"
+                    )
+
+            # A data preenchida é a fonte de verdade para a conclusão da etapa.
+            df_plan["etapa_planejamento"] = "Concluído"
+            df_plan.loc[
+                df_plan["data_conclusao_laudo"].isna(), "etapa_planejamento"
+            ] = "Aguardando laudo"
+            df_plan.loc[
+                df_plan["data_conclusao_analise"].isna(), "etapa_planejamento"
+            ] = "Aguardando análise"
+            df_plan.loc[
+                df_plan["data_conclusao_logistica"].isna(), "etapa_planejamento"
+            ] = "Aguardando logística"
+            df_plan.loc[
+                df_plan["data_conclusao_amostragem"].isna(),
+                "etapa_planejamento",
+            ] = "Aguardando amostragem"
+
+            df_backlog = df_plan[
+                df_plan["etapa_planejamento"] != "Concluído"
+            ].copy()
+
+            hoje = pd.Timestamp.now(
+                tz="America/Sao_Paulo"
+            ).tz_localize(None).normalize()
+
+            df_backlog["idade_dias"] = (
+                hoje - df_backlog["data_solicitacao"]
+            ).dt.days
+
+            df_backlog["idade_dias"] = df_backlog["idade_dias"].clip(lower=0)
+            df_backlog["faixa_idade"] = pd.cut(
+                df_backlog["idade_dias"],
+                bins=[-1, 15, 30, 60, float("inf")],
+                labels=["Até 15 dias", "16 a 30 dias", "31 a 60 dias", "Acima de 60 dias"],
+            ).astype("string")
+            df_backlog["faixa_idade"] = df_backlog["faixa_idade"].fillna(
+                "Sem data"
+            )
+
+            # Área total em backlog
+            area_backlog = df_backlog["area_ha"].sum()
+
+            # Área aguardando amostragem
+            area_amos_pendente = df_backlog.loc[
+                df_backlog["etapa_planejamento"] == "Aguardando amostragem",
+                "area_ha"
+            ].sum()
+
+            # Área aguardando logística
+            area_log_pendente = df_backlog.loc[
+                df_backlog["etapa_planejamento"] == "Aguardando logística",
+                "area_ha"
+            ].sum()
+
+            # Área aguardando análise
+            area_ana_pendente = df_backlog.loc[
+                df_backlog["etapa_planejamento"] == "Aguardando análise",
+                "area_ha"
+            ].sum()
+
+            # Área de prioridade
+            area_urgente = df_backlog.loc[
+                df_backlog.get(
+                    "prioridade_amostragem",
+                    pd.Series(index=df_backlog.index, dtype="object")
+                )
+                .fillna("")
+                .astype(str)
+                .str.strip()
+                .str.casefold()
+                .eq("urgente"),
+                "area_ha"
+            ].sum()
+
+            c_plan1, c_plan2, c_plan3, c_plan4, c_plan5 = st.columns(5)
+            with c_plan1:
+                card_kpi(
+                    "Backlog ativo",
+                    f"{format_num(area_backlog)} ha",
+                    f"{len(df_backlog):,.0f}".replace(",", ".")
+                    + " registros pendentes"
+                )
+            with c_plan2:
+                card_kpi(
+                    "Aguardando amostragem",
+                    f"{format_num(area_amos_pendente)} ha",
+                    "Área ainda sem conclusão de campo"
+                )
+            with c_plan3:
+                card_kpi(
+                    "Aguardando logística",
+                    f"{format_num(area_log_pendente)} ha",
+                    "Coletada e ainda não transportada",
+                )
+            with c_plan4:
+                card_kpi(
+                    "Aguardando análise",
+                    f"{format_num(area_ana_pendente)} ha",
+                    "Logística concluída e análise pendente",
+                )
+            with c_plan5:
+                card_kpi(
+                    "Prioridade urgente",
+                    f"{format_num(area_urgente)} ha",
+                    "Área urgente ainda sem laudo",
+                )
+
+            st.divider()
+
+            etapa_ordem = [
+                "Aguardando amostragem",
+                "Aguardando logística",
+                "Aguardando análise",
+                "Aguardando laudo",
+            ]
+
+            col_graf1, col_graf2 = st.columns(2)
+
+            with col_graf1:
+                st.markdown("###### Área pendente por unidade e prioridade")
+
+                df_unidade_prioridade = df_backlog.copy()
+                df_unidade_prioridade["unidade_planejamento"] = (
+                    df_unidade_prioridade.get(
+                        "unidade",
+                        pd.Series(
+                            index=df_unidade_prioridade.index,
+                            dtype="object",
+                        ),
+                    )
+                    .fillna("Sem unidade")
+                    .astype(str)
+                    .str.strip()
+                    .replace("", "Sem unidade")
+                )
+                df_unidade_prioridade["prioridade_planejamento"] = (
+                    df_unidade_prioridade.get(
+                        "prioridade_amostragem",
+                        pd.Series(
+                            index=df_unidade_prioridade.index,
+                            dtype="object",
+                        ),
+                    )
+                    .fillna("Sem prioridade")
+                    .astype(str)
+                    .str.strip()
+                    .replace("", "Sem prioridade")
+                )
+
+                unidade_prioridade_resumo = (
+                    df_unidade_prioridade.groupby(
+                        ["unidade_planejamento", "prioridade_planejamento"],
+                        as_index=False,
+                    )
+                    .agg(area_ha=("area_ha", "sum"), registros=("area_ha", "size"))
+                )
+                unidade_ordem = (
+                    unidade_prioridade_resumo.groupby("unidade_planejamento")[
+                        "area_ha"
+                    ]
+                    .sum()
+                    .sort_values(ascending=False)
+                    .index.tolist()
+                )
+                prioridades_base = ["Urgente", "Alta", "Média", "Sem prioridade"]
+                prioridades_extras = sorted(
+                    set(
+                        unidade_prioridade_resumo[
+                            "prioridade_planejamento"
+                        ].tolist()
+                    )
+                    - set(prioridades_base)
+                )
+                prioridade_ordem_grafico = prioridades_base + prioridades_extras
+
+                fig_unidade_prioridade = px.bar(
+                    unidade_prioridade_resumo,
+                    x="unidade_planejamento",
+                    y="area_ha",
+                    color="prioridade_planejamento",
+                    color_discrete_map={
+                        "Urgente": CORES["vermelho"],
+                        "Alta": CORES["alerta"],
+                        "Média": CORES["verde"],
+                        "Sem prioridade": CORES["cinza"],
+                    },
+                    category_orders={
+                        "unidade_planejamento": unidade_ordem,
+                        "prioridade_planejamento": prioridade_ordem_grafico,
+                    },
+                    custom_data=["registros"],
+                )
+                fig_unidade_prioridade.update_traces(
+                    hovertemplate=(
+                        "<b>%{x}</b><br>%{y:,.0f} ha"
+                        "<br>%{customdata[0]} registros<extra></extra>"
+                    ),
+                )
+                fig_unidade_prioridade.update_layout(
+                    barmode="stack",
+                    xaxis_title="Unidade",
+                    yaxis_title="Área pendente (ha)",
+                    legend_title_text="Prioridade",
+                    separators=".,",
+                )
+                st.plotly_chart(
+                    aplicar_layout_grafico(fig_unidade_prioridade, 360),
+                    use_container_width=True,
+                )
+
+            with col_graf2:
+                st.markdown("###### Envelhecimento do backlog")
+                faixa_ordem = [
+                    "Até 15 dias",
+                    "16 a 30 dias",
+                    "31 a 60 dias",
+                    "Acima de 60 dias",
+                    "Sem data",
+                ]
+                faixa_resumo = (
+                    df_backlog.groupby("faixa_idade", as_index=False)
+                    .agg(area_ha=("area_ha", "sum"), registros=("area_ha", "size"))
+                    .set_index("faixa_idade")
+                    .reindex(faixa_ordem, fill_value=0)
+                    .reset_index()
+                )
+                faixa_resumo["rotulo"] = faixa_resumo["area_ha"].map(
+                    lambda valor: f"{format_num(valor)} ha"
+                )
+
+                fig_idade = px.bar(
+                    faixa_resumo,
+                    x="faixa_idade",
+                    y="area_ha",
+                    color="faixa_idade",
+                    color_discrete_map={
+                        "Até 15 dias": CORES["verde_claro"],
+                        "16 a 30 dias": CORES["verde"],
+                        "31 a 60 dias": CORES["alerta"],
+                        "Acima de 60 dias": CORES["vermelho"],
+                        "Sem data": CORES["cinza"],
+                    },
+                    text="rotulo",
+                    custom_data=["registros"],
+                )
+                fig_idade.update_traces(
+                    textposition="outside",
+                    hovertemplate=(
+                        "<b>%{x}</b><br>%{y:,.0f} ha"
+                        "<br>%{customdata[0]} registros<extra></extra>"
+                    ),
+                )
+                fig_idade.update_layout(
+                    showlegend=False,
+                    xaxis_title="Idade desde a solicitação",
+                    yaxis_title="Área pendente (ha)",
+                    separators=".,",
+                )
+                st.plotly_chart(
+                    aplicar_layout_grafico(fig_idade, 360),
+                    use_container_width=True,
+                )
+
+            st.divider()
+            st.markdown("##### Fila operacional priorizada")
+            st.caption(
+                "Ordenação por prioridade, tempo desde a solicitação e maior área."
+            )
+
+            col_filtro1, col_filtro2 = st.columns(2)
+            prioridades_plan = [
+                prioridade
+                for prioridade in ["Urgente", "Alta", "Média"]
+                if prioridade
+                in df_backlog.get(
+                    "prioridade_amostragem",
+                    pd.Series(dtype="object"),
+                ).values
+            ]
+            with col_filtro1:
+                prioridade_filtro = st.multiselect(
+                    "Prioridade",
+                    options=prioridades_plan,
+                    default=prioridades_plan,
+                    key="planejamento_prioridade",
+                )
+            with col_filtro2:
+                etapa_filtro = st.multiselect(
+                    "Etapa atual",
+                    options=etapa_ordem,
+                    default=etapa_ordem,
+                    key="planejamento_etapa",
+                )
+
+            df_fila = df_backlog.copy()
+            if prioridade_filtro and "prioridade_amostragem" in df_fila.columns:
+                df_fila = df_fila[
+                    df_fila["prioridade_amostragem"].isin(prioridade_filtro)
+                ]
+            if etapa_filtro:
+                df_fila = df_fila[
+                    df_fila["etapa_planejamento"].isin(etapa_filtro)
+                ]
+
+            prioridade_ordem = {"Urgente": 0, "Alta": 1, "Média": 2}
+            df_fila["ordem_prioridade"] = (
+                df_fila.get(
+                    "prioridade_amostragem",
+                    pd.Series(index=df_fila.index, dtype="object"),
+                )
+                .map(prioridade_ordem)
+                .fillna(99)
+            )
+            df_fila = df_fila.sort_values(
+                ["ordem_prioridade", "idade_dias", "area_ha"],
+                ascending=[True, False, False],
+            )
+
+            colunas_fila = [
+                "prioridade_amostragem",
+                "idade_dias",
+                "unidade",
+                "cod_fazenda",
+                "descricao_fazenda",
+                "setor",
+                "talhao",
+                "area_ha",
+                "tipo_amostra",
+                "classificacao_fazenda",
+                "etapa_planejamento",
+                "remessa_logistica",
+                "data_solicitacao",
+            ]
+            colunas_fila = [
+                coluna for coluna in colunas_fila if coluna in df_fila.columns
+            ]
+            df_fila_exibicao = df_fila[colunas_fila].rename(
+                columns={
+                    "prioridade_amostragem": "Prioridade",
+                    "idade_dias": "Idade (dias)",
+                    "unidade": "Unidade",
+                    "cod_fazenda": "Cód. Fazenda",
+                    "descricao_fazenda": "Fazenda",
+                    "setor": "Setor",
+                    "talhao": "Talhão",
+                    "area_ha": "Área (ha)",
+                    "tipo_amostra": "Tipo",
+                    "classificacao_fazenda": "Classificação Fazenda",
+                    "etapa_planejamento": "Etapa atual",
+                    "remessa_logistica": "Remessa",
+                    "data_solicitacao": "Data da solicitação",
+                }
+            )
+
+            st.dataframe(
+                df_fila_exibicao,
+                hide_index=True,
+                use_container_width=True,
+                column_config={
+                    "Área (ha)": st.column_config.NumberColumn(format="%.2f"),
+                    "Idade (dias)": st.column_config.NumberColumn(format="%d"),
+                    "Data da solicitação": st.column_config.DateColumn(
+                        format="DD/MM/YYYY"
+                    ),
+                },
+            )
+
+            st.caption(
+                "Critério: cancelados são excluídos e uma etapa só é considerada "
+                "concluída quando sua data de conclusão está preenchida."
+            )
 # ============================================================
 # RODAPÉ
 # ============================================================
