@@ -1570,7 +1570,7 @@ with tab_planejamento:
                 "Aguardando laudo",
             ]
 
-            col_graf1, col_graf2 = st.columns([1, 3])
+            col_graf1, col_graf2 = st.columns(2)
 
             with col_graf1:
                 st.markdown("###### Área pendente por unidade e prioridade")
@@ -1723,7 +1723,7 @@ with tab_planejamento:
                 "Ordenação por prioridade, tempo desde a solicitação e maior área."
             )
 
-            col_filtro1, col_filtro2 = st.columns(2)
+            col_filtro1, col_filtro2 = st.columns([1, 3])
             prioridades_plan = [
                 prioridade
                 for prioridade in ["Urgente", "Alta", "Média"]
