@@ -508,6 +508,7 @@ with tab_geral:
                 y="Quantidade",
                 color="Status",
                 facet_row="Tipo",
+                category_orders={"Tipo": ["Fertilidade", "PAV"]},
                 facet_row_spacing=0.15,
                 color_discrete_map={
                     "Concluído": CORES["verde"],
