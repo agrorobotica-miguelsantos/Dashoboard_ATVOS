@@ -223,7 +223,9 @@ def aplicar_layout_grafico(fig, altura=400):
 # ============================================================
 
 padrao_pedido = re.compile(
-    r"^(?P<prefixo>F|PAV)(?P<ano>\d{4})(?P<remessa>\d{3})S$", flags=re.IGNORECASE
+    r"^(?P<prefixo>F|PAV)(?P<ano>\d{4})(?P<remessa>\d{3})S$",
+    r"(?P<parcial>_parcial)?$",
+    flags=re.IGNORECASE
 )
 
 
