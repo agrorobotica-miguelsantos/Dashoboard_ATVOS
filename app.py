@@ -5,6 +5,7 @@
 
 import datetime as dt
 import re
+import warnings
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -223,32 +224,45 @@ def aplicar_layout_grafico(fig, altura=400):
 # ============================================================
 
 padrao_pedido = re.compile(
-    r"^(?P<prefixo>F|PAV)(?P<ano>\d{4})(?P<remessa>\d{3})S$" 
+    r"^(?P<prefixo>F|PAV)(?P<ano>\d{4})(?P<remessa>\d{3})S"
     r"(?P<parcial>_parcial)?$",
-    flags=re.IGNORECASE
+    flags=re.IGNORECASE,
 )
 
 
-@st.cache_data(ttl=3600, show_spinner="Carregando planilhas do OneDrive...")
-def carregar_dados_locais():
+def obter_assinatura_planilhas():
     entrada = Path("pedidos")
-
     if not entrada.exists():
+        return tuple()
+
+    return tuple(
+        (str(planilha), planilha.stat().st_mtime_ns, planilha.stat().st_size)
+        for planilha in sorted(entrada.rglob("*.xlsx"))
+    )
+
+
+@st.cache_data(ttl=3600, show_spinner="Carregando planilhas do OneDrive...")
+def carregar_dados_locais(assinatura_planilhas):
+    if not assinatura_planilhas:
         return pd.DataFrame()
 
-    planilhas = sorted(entrada.rglob("*.xlsx"))
-    lista_combinada = []
+    planilhas = [Path(caminho) for caminho, _, _ in assinatura_planilhas]
+    arquivos_carregados = []
 
     for planilha in planilhas:
         match = padrao_pedido.fullmatch(planilha.stem)
 
         if not match:
+            st.warning(
+                f"Arquivo ignorado por nome incompatível: {planilha.name}"
+            )
             continue
 
         prefixo = match.group("prefixo").upper()
         ano = match.group("ano")
         remessa = match.group("remessa")
         tipo = "Fertilidade" if prefixo == "F" else "PAV"
+        eh_parcial = match.group("parcial") is not None
 
         try:
             df_temp = pd.read_excel(planilha)
@@ -259,7 +273,7 @@ def carregar_dados_locais():
             df_temp.insert(2, "Tipo", tipo)
             df_temp.insert(3, "Arquivo_Origem", planilha.name)
 
-            lista_combinada.append(df_temp)
+            arquivos_carregados.append((eh_parcial, planilha.name.lower(), df_temp))
 
         except PermissionError:
             st.error(
@@ -269,10 +283,130 @@ def carregar_dados_locais():
         except Exception as e:
             st.error(f"Erro ao ler a planilha {planilha.name}: {e}")
 
-    if not lista_combinada:
+    if not arquivos_carregados:
         return pd.DataFrame()
 
-    return pd.concat(lista_combinada, ignore_index=True)
+    # Arquivos completos formam a base sem alterar o comportamento anterior.
+    # Parciais, lidos depois, atualizam somente os valores preenchidos das
+    # mesmas amostras e acrescentam apenas amostras realmente novas.
+    chaves_amostra = ["Ano", "Remessa", "Tipo", "QR-Code"]
+    arquivos_base = [
+        (nome, df_temp)
+        for eh_parcial, nome, df_temp in arquivos_carregados
+        if not eh_parcial
+    ]
+    arquivos_parciais = [
+        (nome, df_temp)
+        for eh_parcial, nome, df_temp in arquivos_carregados
+        if eh_parcial
+    ]
+
+    if arquivos_base:
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore",
+                message=(
+                    "The behavior of DataFrame concatenation with empty or "
+                    "all-NA entries is deprecated.*"
+                ),
+                category=FutureWarning,
+            )
+            df_consolidado = pd.concat(
+                [df_temp for _, df_temp in sorted(arquivos_base)],
+                ignore_index=True,
+            )
+    else:
+        df_consolidado = pd.DataFrame()
+
+    for _, df_temp in sorted(arquivos_parciais):
+        colunas_faltantes = [
+            coluna for coluna in chaves_amostra if coluna not in df_temp.columns
+        ]
+        if colunas_faltantes:
+            arquivo = df_temp["Arquivo_Origem"].iloc[0]
+            st.error(
+                f"Arquivo {arquivo} ignorado: colunas-chave ausentes: "
+                f"{', '.join(colunas_faltantes)}"
+            )
+            continue
+
+        if df_consolidado.empty:
+            df_consolidado = df_temp.copy()
+            continue
+
+        colunas_faltantes_base = [
+            coluna for coluna in chaves_amostra if coluna not in df_consolidado.columns
+        ]
+        if colunas_faltantes_base:
+            st.error(
+                "Não foi possível consolidar arquivos parciais: colunas-chave "
+                f"ausentes na base: {', '.join(colunas_faltantes_base)}"
+            )
+            continue
+
+        for coluna in df_temp.columns.difference(df_consolidado.columns):
+            df_consolidado[coluna] = pd.NA
+        for coluna in df_consolidado.columns.difference(df_temp.columns):
+            df_temp[coluna] = pd.NA
+        df_temp = df_temp.reindex(columns=df_consolidado.columns)
+
+        chave_valida_parcial = df_temp[chaves_amostra].notna().all(axis=1)
+        chave_valida_parcial &= (
+            df_temp["QR-Code"].astype("string").str.strip().ne("").fillna(False)
+        )
+        df_parcial_valido = df_temp.loc[chave_valida_parcial].copy()
+        df_parcial_valido = df_parcial_valido.replace(r"^\s*$", pd.NA, regex=True)
+
+        if df_parcial_valido.duplicated(chaves_amostra).any():
+            arquivo = df_temp["Arquivo_Origem"].iloc[0]
+            st.warning(
+                f"O arquivo {arquivo} contém amostras duplicadas; "
+                "foi mantida a última ocorrência de cada QR-Code."
+            )
+            df_parcial_valido = df_parcial_valido.drop_duplicates(
+                chaves_amostra, keep="last"
+            )
+
+        chave_valida_base = df_consolidado[chaves_amostra].notna().all(axis=1)
+        chave_valida_base &= (
+            df_consolidado["QR-Code"]
+            .astype("string")
+            .str.strip()
+            .ne("")
+            .fillna(False)
+        )
+        indices_base = df_consolidado.index[chave_valida_base]
+        chaves_base = pd.MultiIndex.from_frame(
+            df_consolidado.loc[indices_base, chaves_amostra]
+        )
+        parcial_indexado = df_parcial_valido.set_index(chaves_amostra)
+
+        atualizacoes = parcial_indexado.reindex(chaves_base)
+        atualizacoes.index = indices_base
+        df_consolidado.update(atualizacoes)
+
+        chaves_existentes = pd.MultiIndex.from_frame(
+            df_consolidado.loc[chave_valida_base, chaves_amostra]
+        )
+        amostras_novas = parcial_indexado.loc[
+            ~parcial_indexado.index.isin(chaves_existentes)
+        ].reset_index()
+        linhas_sem_chave = df_temp.loc[~chave_valida_parcial]
+
+        linhas_para_adicionar = [
+            df_novo
+            for df_novo in (amostras_novas, linhas_sem_chave)
+            if not df_novo.empty
+        ]
+        if linhas_para_adicionar:
+            df_consolidado = pd.concat(
+                [df_consolidado, *linhas_para_adicionar], ignore_index=True
+            )
+
+    if df_consolidado.empty:
+        return pd.DataFrame()
+
+    return df_consolidado.reset_index(drop=True)
 
 
 @st.cache_data(ttl=3600, show_spinner="Carregando Dados de Área e Solicitações...")
@@ -321,7 +455,8 @@ def carregar_solicitacao():
 # PROCESSAMENTO E TRATAMENTO DA BASE PRINCIPAL
 # ============================================================
 
-df_bruto = carregar_dados_locais()
+assinatura_pedidos = obter_assinatura_planilhas()
+df_bruto = carregar_dados_locais(assinatura_pedidos)
 df_solicitacao = carregar_solicitacao()
 
 if df_bruto.empty:
