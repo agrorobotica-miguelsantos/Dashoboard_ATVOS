@@ -628,7 +628,10 @@ with tab_geral:
 
         st.divider()
 
-        col_graf1, col_graf2 = st.columns(2)
+        # Mantém os gráficos em largura total para preservar a legibilidade
+        # conforme novas remessas são adicionadas.
+        col_graf1 = st.container()
+        col_graf2 = st.container()
 
         with col_graf1:
             df_graf_remessa = (
@@ -637,7 +640,45 @@ with tab_geral:
                 .reset_index(name="Quantidade")
             )
             df_graf_remessa["Remessa"] = df_graf_remessa["Remessa"].astype(str)
-            ordem_remessas = sorted(df_graf_remessa["Remessa"].unique())
+            ordem_remessas_completa = sorted(
+                df_graf_remessa["Remessa"].unique(),
+                key=lambda valor: (
+                    0,
+                    int(valor),
+                )
+                if str(valor).isdigit()
+                else (1, str(valor)),
+            )
+
+            opcoes_visualizacao = {
+                "Últimas 10": 10,
+                "Últimas 20": 20,
+                "Todas": None,
+            }
+            visualizacao_remessas = st.selectbox(
+                "Remessas exibidas no gráfico",
+                options=list(opcoes_visualizacao),
+                index=0,
+                key="visualizacao_grafico_remessas",
+                help=(
+                    "Este controle altera somente o gráfico. "
+                    "Os indicadores continuam considerando todos os filtros ativos."
+                ),
+            )
+            limite_remessas = opcoes_visualizacao[visualizacao_remessas]
+            ordem_remessas = (
+                ordem_remessas_completa[-limite_remessas:]
+                if limite_remessas is not None
+                else ordem_remessas_completa
+            )
+            df_graf_remessa = df_graf_remessa[
+                df_graf_remessa["Remessa"].isin(ordem_remessas)
+            ]
+            st.caption(
+                f"Exibindo {len(ordem_remessas)} de "
+                f"{len(ordem_remessas_completa)} remessas selecionadas."
+            )
+
             tipos_ativos = df_graf_remessa["Tipo"].dropna().unique().tolist()
             ordem_tipos = [
                 tipo for tipo in ["Fertilidade", "PAV"] if tipo in tipos_ativos
@@ -671,6 +712,7 @@ with tab_geral:
                 categoryorder="array",
                 categoryarray=ordem_remessas,
                 title_text="",
+                tickangle=-45 if len(ordem_remessas) > 10 else 0,
             )
             fig_remessa.update_traces(textangle=0, cliponaxis=False)
 
