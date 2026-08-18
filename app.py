@@ -628,10 +628,7 @@ with tab_geral:
 
         st.divider()
 
-        # Mantém os gráficos em largura total para preservar a legibilidade
-        # conforme novas remessas são adicionadas.
-        col_graf1 = st.container()
-        col_graf2 = st.container()
+        col_graf1, col_graf2 = st.columns(2)
 
         with col_graf1:
             df_graf_remessa = (
