@@ -638,6 +638,13 @@ with tab_geral:
             )
             df_graf_remessa["Remessa"] = df_graf_remessa["Remessa"].astype(str)
             ordem_remessas = sorted(df_graf_remessa["Remessa"].unique())
+            tipos_ativos = df_graf_remessa["Tipo"].dropna().unique().tolist()
+            ordem_tipos = [
+                tipo for tipo in ["Fertilidade", "PAV"] if tipo in tipos_ativos
+            ]
+            ordem_tipos.extend(
+                sorted(tipo for tipo in tipos_ativos if tipo not in ordem_tipos)
+            )
 
             fig_remessa = px.bar(
                 df_graf_remessa,
@@ -645,7 +652,7 @@ with tab_geral:
                 y="Quantidade",
                 color="Status",
                 facet_row="Tipo",
-                category_orders={"Tipo": ["Fertilidade", "PAV"]},
+                category_orders={"Tipo": ordem_tipos},
                 facet_row_spacing=0.15,
                 color_discrete_map={
                     "Concluído": CORES["verde"],
@@ -667,7 +674,6 @@ with tab_geral:
             )
             fig_remessa.update_traces(textangle=0, cliponaxis=False)
 
-            tipos_ativos = df_graf_remessa["Tipo"].unique()
             if len(tipos_ativos) == 2:
                 fig_remessa.update_xaxes(
                     showticklabels=True, row=1, col=1, title_text="Remessa"
